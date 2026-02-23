@@ -221,7 +221,9 @@ func TestRotateProgressIfNeeded_BelowThreshold(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "progress.md")
 	content := "line1\nline2\nline3\n"
-	os.WriteFile(path, []byte(content), 0644)
+	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+		t.Fatal(err)
+	}
 	if err := RotateProgressIfNeeded(path, 100); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
