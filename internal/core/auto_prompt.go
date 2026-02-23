@@ -19,7 +19,7 @@ Each iteration is independent — you start with a fresh context window.
 
 1. **Read project context**:
    - Read ` + "`CLAUDE.md`" + ` or ` + "`AGENTS.md`" + ` for project guardrails
-   - Read ` + "`.claude/auto/progress.md`" + ` for learnings from prior iterations
+   - Read ` + "`.claude/auto/progress-context.md`" + ` for learnings from prior iterations (auto-generated summary)
    - Read ` + "`.claude/auto/prd.json`" + ` to find the task list and current state
 
 2. **Select the next task**:
@@ -50,7 +50,7 @@ Each iteration is independent — you start with a fresh context window.
    - Update ` + "`progress.total_tasks`" + ` and ` + "`progress.completed_tasks`" + `
 
 7. **Document learnings**:
-   - Append any insights, gotchas, or decisions to ` + "`.claude/auto/progress.md`" + `
+   - Append any insights, gotchas, or decisions to ` + "`.claude/auto/progress.md`" + ` (full history log)
    - Format: ` + "`[timestamp] [iteration:N] [task:ID] LEARNING: description`" + `
 
 ## Rules

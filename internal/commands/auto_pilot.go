@@ -182,6 +182,8 @@ func executePilotLoop(cwd string, autoCfg core.AutoConfig, pilotCfg *core.PilotC
 		isDiscovery := core.ShouldRunDiscovery(
 			currentPRD, i, lastDiscoveryIter, pilotCfg.DiscoverInterval)
 
+		core.PrepareProgressContext(cwd)
+
 		if isDiscovery {
 			ui.Info("[iteration:%d] DISCOVERY - analyzing project for tasks...", i)
 			loopCfg.PromptPath = discoveryPromptPath

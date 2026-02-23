@@ -95,11 +95,14 @@ type AutoConfig struct {
 	AITool          string   `json:"ai_tool"`
 	PromptFile      string   `json:"ai_prompt_file"`
 	Sandbox         string   `json:"sandbox"`
-	SandboxImage    string   `json:"sandbox_image,omitempty"`
-	SandboxTemplate string   `json:"sandbox_template,omitempty"`
-	PilotMode       bool     `json:"pilot_mode,omitempty"`
-	PilotConfig     *PilotConfig `json:"pilot_config,omitempty"`
-	DiscoveryPrompt string   `json:"discovery_prompt_file,omitempty"`
+	SandboxImage         string       `json:"sandbox_image,omitempty"`
+	SandboxTemplate      string       `json:"sandbox_template,omitempty"`
+	PilotMode            bool         `json:"pilot_mode,omitempty"`
+	PilotConfig          *PilotConfig `json:"pilot_config,omitempty"`
+	DiscoveryPrompt      string       `json:"discovery_prompt_file,omitempty"`
+	ProgressMaxLearnings int          `json:"progress_max_learnings,omitempty"`
+	ProgressMaxCompleted int          `json:"progress_max_completed,omitempty"`
+	ProgressMaxLines     int          `json:"progress_max_lines,omitempty"`
 }
 
 // PilotConfig holds pilot-mode specific configuration

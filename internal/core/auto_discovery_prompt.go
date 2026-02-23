@@ -21,6 +21,7 @@ Your job is to analyze the project and generate high-value tasks.
 
 1. **Read project context**:
    - Read ` + "`CLAUDE.md`" + ` or ` + "`AGENTS.md`" + ` for project guardrails and conventions
+   - Read ` + "`.claude/auto/progress-context.md`" + ` for learnings from prior iterations (auto-generated summary)
    - Read ` + "`README.md`" + ` for project overview
    - Scan the project directory structure
 

@@ -19,6 +19,7 @@ func TestGetDefaultPromptTemplate(t *testing.T) {
 		"## Rules",
 		"## Error Recovery",
 		"Read project context",
+		"progress-context.md",
 		"Select the next task",
 		"Implement the task",
 		"Run quality checks",

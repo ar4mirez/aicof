@@ -73,6 +73,8 @@ func RunAutoLoop(cfg LoopConfig) error {
 
 		notifyIterStart(cfg.OnIterStart, i, IterationTypeImplementation)
 
+		PrepareProgressContext(cfg.ProjectDir)
+
 		err = InvokeAgent(cfg)
 		if err != nil {
 			consecutiveFailures++

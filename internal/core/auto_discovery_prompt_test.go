@@ -14,6 +14,7 @@ func TestGetDiscoveryPromptTemplate_RequiredSections(t *testing.T) {
 		"Do NOT write any code",
 		"prd.json",
 		"progress.md",
+		"progress-context.md",
 		"Priority Order",
 		"pilot-discovery",
 		"atomic",
