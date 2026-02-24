@@ -74,6 +74,8 @@ func RunAutoLoop(cfg LoopConfig) error {
 		notifyIterStart(cfg.OnIterStart, i, IterationTypeImplementation)
 
 		PrepareProgressContext(cfg.ProjectDir)
+		_ = GenerateProjectSnapshot(cfg.ProjectDir)
+		_ = GenerateTaskContext(cfg.ProjectDir, prd, false)
 
 		err = InvokeAgent(cfg)
 		if err != nil {

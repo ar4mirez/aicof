@@ -15,41 +15,51 @@ func GetDefaultPromptTemplate() string {
 You are running in autonomous mode as part of the Ralph Wiggum methodology.
 Each iteration is independent — you start with a fresh context window.
 
+## Context Efficiency
+
+Your context window is limited. Minimize token consumption so you have room to implement:
+
+1. **Read ` + "`.claude/auto/task-context.md`" + ` FIRST** — it contains your assigned task with
+   full detail (ID, title, description, files to modify). Do NOT read the full prd.json
+   to find your task.
+2. **Read ` + "`.claude/auto/progress-context.md`" + `** for learnings from prior iterations.
+3. **Read only the files listed in ` + "`files_to_modify`" + `** for your task. Do NOT explore
+   the broader codebase unless the task specifically requires understanding dependencies.
+4. **Update prd.json directly** for status changes — you already know the task ID from
+   task-context.md.
+5. **Read ` + "`CLAUDE.md`" + ` only if needed** — the key project guardrails are:
+   functions ≤50 lines, files ≤300 lines, tests required, conventional commits.
+
 ## Your Task
 
-1. **Read project context**:
-   - Read ` + "`CLAUDE.md`" + ` or ` + "`AGENTS.md`" + ` for project guardrails
-   - Read ` + "`.claude/auto/progress-context.md`" + ` for learnings from prior iterations (auto-generated summary)
-   - Read ` + "`.claude/auto/prd.json`" + ` to find the task list and current state
+1. **Read task context** (small, pre-computed files):
+   - Read ` + "`.claude/auto/task-context.md`" + ` — contains your assigned task detail
+   - Read ` + "`.claude/auto/progress-context.md`" + ` — learnings from prior iterations
+   - Read ` + "`CLAUDE.md`" + ` or ` + "`AGENTS.md`" + ` only if you need project-specific guardrails
 
-2. **Select the next task**:
-   - Find the highest-priority task with status "pending"
-   - Respect dependencies: skip tasks whose ` + "`depends_on`" + ` tasks are not yet "completed" or "skipped"
-   - Prefer tasks with priority "critical" > "high" > "medium" > "low"
-   - If priorities are equal, prefer lower-numbered task IDs
-
-3. **Implement the task**:
+2. **Implement the task**:
    - Update the task's status to "in_progress" in prd.json
-   - Follow project guardrails from CLAUDE.md
+   - Read only the files listed in ` + "`files_to_modify`" + ` from task-context.md
+   - Follow project guardrails
    - Write tests alongside code
    - Keep changes atomic — one task per iteration
 
-4. **Run quality checks**:
+3. **Run quality checks**:
    - Execute the commands listed in ` + "`prd.json`" + ` under ` + "`config.quality_checks`" + `
    - All checks must pass before committing
    - If a check fails, fix the issue and retry
 
-5. **Commit changes**:
+4. **Commit changes**:
    - Use conventional commit format: ` + "`type(scope): description`" + `
    - Include task ID in commit message
    - Example: ` + "`feat(auth): task 1.1 - create user schema`" + `
 
-6. **Update state**:
+5. **Update state**:
    - Set the task's status to "completed" in prd.json
    - Record the commit SHA in the task's ` + "`commit_sha`" + ` field
    - Update ` + "`progress.total_tasks`" + ` and ` + "`progress.completed_tasks`" + `
 
-7. **Document learnings**:
+6. **Document learnings**:
    - Append any insights, gotchas, or decisions to ` + "`.claude/auto/progress.md`" + ` (full history log)
    - Format: ` + "`[timestamp] [iteration:N] [task:ID] LEARNING: description`" + `
 

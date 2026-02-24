@@ -17,29 +17,46 @@ Your job is to analyze the project and generate high-value tasks.
 **CRITICAL: Do NOT write any code or make any commits in this iteration.**
 **Only update prd.json and progress.md.**
 
+## Context Efficiency
+
+Your context window is limited and expensive. Follow these rules strictly:
+
+1. **Read ` + "`.claude/auto/project-snapshot.md`" + ` FIRST** — it contains pre-computed
+   directory structure, test gap analysis, file sizes, TODO counts, and recent git log.
+   Do NOT manually scan the directory tree, run find/ls, or grep for TODOs.
+2. **Read ` + "`.claude/auto/task-context.md`" + `** for existing task summary — do NOT read
+   the full prd.json for analysis. Only open prd.json when writing new tasks.
+3. **Read ` + "`.claude/auto/progress-context.md`" + `** for learnings and explored areas
+   from prior iterations.
+4. **Use grep/glob over file reads** — search for patterns across files instead of
+   reading entire files. Only read a file when you need specific line-level context.
+5. **Read at most 10 source files** per discovery iteration. Use the snapshot and
+   grep results to decide which files are highest-value.
+6. **Skip files already covered by pending tasks** — task-context.md lists them.
+7. **Skip files in the "Areas Already Analyzed" section** of progress-context.md
+   unless the snapshot shows they have changed recently (check git log).
+
 ## Steps
 
-1. **Read project context**:
-   - Read ` + "`CLAUDE.md`" + ` or ` + "`AGENTS.md`" + ` for project guardrails and conventions
-   - Read ` + "`.claude/auto/progress-context.md`" + ` for learnings from prior iterations (auto-generated summary)
-   - Read ` + "`README.md`" + ` for project overview
-   - Scan the project directory structure
+1. **Read pre-computed context** (these are small, read all three):
+   - ` + "`.claude/auto/project-snapshot.md`" + ` — project structure, test gaps, TODOs, large files
+   - ` + "`.claude/auto/task-context.md`" + ` — existing task summary, covered files
+   - ` + "`.claude/auto/progress-context.md`" + ` — learnings, explored areas
 
-2. **Analyze the codebase** for improvement opportunities:
-   - Check test coverage gaps (files/packages with low or no tests)
-   - Find TODOs, FIXMEs, and HACKs in the code
-   - Look for code quality issues (long functions, high complexity, dead code)
-   - Check documentation gaps (missing godocs, outdated README)
-   - Identify security concerns (input validation, error handling)
-   - Review recent git log for incomplete work or follow-up needs
+2. **Analyze using the snapshot** (do NOT read all source files):
+   - Review test gaps from project-snapshot.md → generate test tasks for uncovered files
+   - Review TODO/FIXME counts from snapshot → read only files with high counts
+   - Review large files from snapshot → check if they exceed guardrail limits (50-line functions, 300-line files)
+   - Use ` + "`grep`" + ` for security patterns (e.g., unchecked errors, path traversal, missing validation)
+   - Check recent git log in snapshot for follow-up needs
+   - Read ` + "`CLAUDE.md`" + ` or ` + "`AGENTS.md`" + ` only if you need to verify project-specific guardrails
 
-3. **Read existing tasks**:
-   - Read ` + "`.claude/auto/prd.json`" + ` to see current tasks
-   - Do NOT create duplicate tasks — check titles and descriptions carefully
-   - Skip areas that already have pending or in-progress tasks
+3. **Read existing tasks** (from task-context.md, NOT full prd.json):
+   - Do NOT create duplicate tasks — check titles in task-context.md
+   - Skip files listed under "Files Already Covered by Pending Tasks"
 
 4. **Generate new tasks**:
-   - Add tasks to prd.json with status "pending"
+   - Read prd.json, add new tasks with status "pending", write prd.json back
    - Each task must be atomic (affects <=5 files)
    - Use clear, actionable titles
    - Set appropriate priority and complexity
@@ -62,9 +79,11 @@ Your job is to analyze the project and generate high-value tasks.
    **IMPORTANT**: The ` + "`id`" + ` field MUST be a string (e.g., ` + "`\"1\"`" + `, ` + "`\"2\"`" + `, ` + "`\"1.1\"`" + `), never a number.
    Use sequential string IDs starting after the highest existing task ID.
 
-5. **Document findings**:
-   - Append a summary of what you discovered to ` + "`.claude/auto/progress.md`" + `
+5. **Document findings and exploration**:
+   - Append discovered issues to ` + "`.claude/auto/progress.md`" + `
    - Format: ` + "`[timestamp] [discovery] FOUND: description`" + `
+   - For each source file you read, log: ` + "`[timestamp] [discovery] EXPLORED: path/to/file.go`" + `
+     (this helps future discoveries skip already-analyzed files)
 
 ## Priority Order
 
@@ -84,6 +103,7 @@ When generating tasks, prioritize in this order:
 - Do NOT commit any changes
 - Keep task descriptions specific and actionable
 - Include files_to_modify in each task when possible
+- **Read at most 10 source files** — use grep and the snapshot for everything else
 `
 }
 

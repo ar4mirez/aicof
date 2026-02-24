@@ -15,12 +15,12 @@ func TestGetDefaultPromptTemplate(t *testing.T) {
 
 	requiredSections := []string{
 		"# Autonomous Iteration Prompt",
+		"## Context Efficiency",
 		"## Your Task",
 		"## Rules",
 		"## Error Recovery",
-		"Read project context",
+		"task-context.md",
 		"progress-context.md",
-		"Select the next task",
 		"Implement the task",
 		"Run quality checks",
 		"Commit changes",

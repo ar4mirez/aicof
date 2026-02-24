@@ -50,7 +50,8 @@ func ProgressContextConfigFromAuto(cfg AutoConfig) ProgressContextConfig {
 }
 
 // GenerateProgressContext reads progress.md and writes a compact
-// progress-context.md containing only learnings and recent completions.
+// progress-context.md containing learnings, recent completions,
+// and explored areas from prior discovery iterations.
 func GenerateProgressContext(progressPath, contextPath string, cfg ProgressContextConfig) error {
 	lines, err := readAllLines(progressPath)
 	if err != nil {
@@ -65,12 +66,13 @@ func GenerateProgressContext(progressPath, contextPath string, cfg ProgressConte
 
 	learnings := extractEntries(lines, "LEARNING:", cfg.MaxLearnings)
 	completed := extractEntries(lines, "COMPLETED:", cfg.MaxCompleted)
+	explored := extractExploredAreas(lines)
 	iterations, completions := countProgressStats(lines)
 
-	return writeContextFile(contextPath, iterations, completions, learnings, completed)
+	return writeContextFile(contextPath, iterations, completions, learnings, completed, explored)
 }
 
-func writeContextFile(path string, iters, completions int, learnings, completed []string) error {
+func writeContextFile(path string, iters, completions int, learnings, completed, explored []string) error {
 	var sb strings.Builder
 	sb.WriteString("# Progress Context (auto-generated — do not edit)\n")
 	fmt.Fprintf(&sb, "Summary: %d iterations completed, %d tasks done\n", iters, completions)
@@ -86,6 +88,14 @@ func writeContextFile(path string, iters, completions int, learnings, completed 
 		sb.WriteString("\n## Recent Completions\n")
 		for _, c := range completed {
 			sb.WriteString(c + "\n")
+		}
+	}
+
+	if len(explored) > 0 {
+		sb.WriteString("\n## Areas Already Analyzed\n")
+		sb.WriteString("Skip these files during discovery unless git log shows recent changes:\n")
+		for _, e := range explored {
+			sb.WriteString(e + "\n")
 		}
 	}
 
@@ -113,6 +123,26 @@ func extractEntries(lines []string, marker string, max int) []string {
 		matches = matches[len(matches)-max:]
 	}
 	return matches
+}
+
+// extractExploredAreas finds unique file paths from EXPLORED: markers in progress.
+// Returns deduplicated paths like "- internal/core/foo.go".
+func extractExploredAreas(lines []string) []string {
+	seen := make(map[string]bool)
+	var result []string
+	for _, line := range lines {
+		idx := strings.Index(line, "EXPLORED:")
+		if idx < 0 {
+			continue
+		}
+		path := strings.TrimSpace(line[idx+len("EXPLORED:"):])
+		if path == "" || seen[path] {
+			continue
+		}
+		seen[path] = true
+		result = append(result, "- "+path)
+	}
+	return result
 }
 
 // countProgressStats counts unique iterations and completions from progress lines.

@@ -183,6 +183,8 @@ func executePilotLoop(cwd string, autoCfg core.AutoConfig, pilotCfg *core.PilotC
 			currentPRD, i, lastDiscoveryIter, pilotCfg.DiscoverInterval)
 
 		core.PrepareProgressContext(cwd)
+		_ = core.GenerateProjectSnapshot(cwd)
+		_ = core.GenerateTaskContext(cwd, currentPRD, isDiscovery)
 
 		if isDiscovery {
 			ui.Info("[iteration:%d] DISCOVERY - analyzing project for tasks...", i)
