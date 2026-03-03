@@ -414,13 +414,13 @@ func TestBuildDockerRunArgs(t *testing.T) {
 			workDir:   "/home/user/project",
 			image:     "node:lts",
 			aiTool:    "codex",
-			agentArgs: []string{"--prompt-file", "/workspace/prompt.md", "--auto"},
+			agentArgs: []string{"exec", "--full-auto", "do the work"},
 			wantParts: []string{
 				"run", "--rm", "--init", "-i",
 				"-v", "/home/user/project:/workspace",
 				"-w", "/workspace",
 				"node:lts",
-				"codex", "--prompt-file", "/workspace/prompt.md", "--auto",
+				"codex", "exec", "--full-auto", "do the work",
 			},
 		},
 		{

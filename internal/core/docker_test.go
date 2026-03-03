@@ -136,13 +136,13 @@ func TestBuildDockerSandboxArgs(t *testing.T) {
 				WorkDir:   "/proj",
 				Name:      "test-run",
 				Template:  "node:20",
-				AgentArgs: []string{"--prompt-file", "/proj/prompt.md"},
+				AgentArgs: []string{"exec", "--full-auto", "do the work"},
 			},
 			wantArgs: []string{
 				"sandbox", "run", "--name", "test-run",
 				"--template", "node:20",
 				"codex", "/proj",
-				"--", "--prompt-file", "/proj/prompt.md",
+				"--", "exec", "--full-auto", "do the work",
 			},
 		},
 	}
@@ -203,7 +203,7 @@ func TestGetAgentArgs_OtherTools(t *testing.T) {
 		{
 			"codex",
 			"/path/prompt.md",
-			[]string{"--prompt-file", "/path/prompt.md", "--auto"},
+			[]string{"exec", "--full-auto", "write code"},
 		},
 		{
 			"amp",
@@ -219,7 +219,14 @@ func TestGetAgentArgs_OtherTools(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.aiTool, func(t *testing.T) {
-			args, err := GetAgentArgs(tt.aiTool, tt.promptPath)
+			promptPath := tt.promptPath
+			if tt.aiTool == "codex" {
+				promptPath = filepath.Join(t.TempDir(), "prompt.md")
+				if err := os.WriteFile(promptPath, []byte("write code"), 0644); err != nil {
+					t.Fatalf("failed to write codex prompt file: %v", err)
+				}
+			}
+			args, err := GetAgentArgs(tt.aiTool, promptPath)
 			if err != nil {
 				t.Fatalf("GetAgentArgs %s: %v", tt.aiTool, err)
 			}

@@ -309,7 +309,7 @@ The human can re-enter the loop at any point by stopping the process and returni
 |------|--------|-------|
 | `claude` | Supported | Default. Uses `claude --print --dangerously-skip-permissions` |
 | `amp` | Supported | Uses `amp --prompt-file` |
-| `codex` | Supported | Uses `codex --prompt-file --auto` |
+| `codex` | Supported | Uses `codex exec --full-auto` |
 | `cursor` | Planned | CLI autonomous mode not yet available |
 
 Set the tool with `--ai-tool` flag or `AI_TOOL` environment variable.

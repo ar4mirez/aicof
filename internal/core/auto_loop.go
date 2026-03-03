@@ -139,9 +139,15 @@ func invokeAgentDocker(cfg LoopConfig) error {
 		return fmt.Errorf("failed to compute relative prompt path: %w", err)
 	}
 
+	containerPromptPath := filepath.Join(DockerContainerMount, promptRel)
+	agentPromptPath := containerPromptPath
+	if requiresPromptContent(cfg.AITool) {
+		agentPromptPath = cfg.PromptPath
+	}
+
 	agentArgs, err := GetAgentArgs(
 		cfg.AITool,
-		filepath.Join(DockerContainerMount, promptRel),
+		agentPromptPath,
 	)
 	if err != nil {
 		return fmt.Errorf("failed to build agent args: %w", err)
@@ -163,6 +169,17 @@ func invokeAgentDocker(cfg LoopConfig) error {
 	cmd.Stderr = os.Stderr
 	cmd.Stdin = os.Stdin
 	return cmd.Run()
+}
+
+// requiresPromptContent reports whether the agent expects prompt content in an
+// argument rather than a prompt file path.
+func requiresPromptContent(aiTool string) bool {
+	switch aiTool {
+	case "claude", "codex":
+		return true
+	default:
+		return false
+	}
 }
 
 func invokeAgentDockerSandbox(cfg LoopConfig) error {
