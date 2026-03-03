@@ -356,8 +356,12 @@ func TestRunList(t *testing.T) {
 		cmd := listCmd
 		cmd.SetArgs([]string{})
 		// Reset flags to defaults
-		cmd.Flags().Set("available", "false")
-		cmd.Flags().Set("type", "")
+		if err := cmd.Flags().Set("available", "false"); err != nil {
+			t.Fatalf("failed to set available flag: %v", err)
+		}
+		if err := cmd.Flags().Set("type", ""); err != nil {
+			t.Fatalf("failed to set type flag: %v", err)
+		}
 
 		err := runList(cmd, []string{})
 		if err != nil {
@@ -370,15 +374,21 @@ func TestRunList(t *testing.T) {
 		defer cleanup()
 
 		cmd := listCmd
-		cmd.Flags().Set("available", "true")
-		cmd.Flags().Set("type", "")
+		if err := cmd.Flags().Set("available", "true"); err != nil {
+			t.Fatalf("failed to set available flag: %v", err)
+		}
+		if err := cmd.Flags().Set("type", ""); err != nil {
+			t.Fatalf("failed to set type flag: %v", err)
+		}
 
 		err := runList(cmd, []string{})
 		if err != nil {
 			t.Errorf("expected nil error, got: %v", err)
 		}
 		// Reset flag for other tests
-		cmd.Flags().Set("available", "false")
+		if err := cmd.Flags().Set("available", "false"); err != nil {
+			t.Fatalf("failed to reset available flag: %v", err)
+		}
 	})
 
 	t.Run("type_filter_passed_through", func(t *testing.T) {
@@ -393,14 +403,20 @@ func TestRunList(t *testing.T) {
 		defer cleanup()
 
 		cmd := listCmd
-		cmd.Flags().Set("available", "false")
-		cmd.Flags().Set("type", "languages")
+		if err := cmd.Flags().Set("available", "false"); err != nil {
+			t.Fatalf("failed to set available flag: %v", err)
+		}
+		if err := cmd.Flags().Set("type", "languages"); err != nil {
+			t.Fatalf("failed to set type flag: %v", err)
+		}
 
 		err := runList(cmd, []string{})
 		if err != nil {
 			t.Errorf("expected nil error, got: %v", err)
 		}
 		// Reset
-		cmd.Flags().Set("type", "")
+		if err := cmd.Flags().Set("type", ""); err != nil {
+			t.Fatalf("failed to reset type flag: %v", err)
+		}
 	})
 }

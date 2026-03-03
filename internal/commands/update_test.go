@@ -229,7 +229,11 @@ func TestCategorizeFileChanges(t *testing.T) {
 		if err := os.Chmod(localPath, 0000); err != nil {
 			t.Fatal(err)
 		}
-		defer os.Chmod(localPath, 0644)
+		defer func() {
+			if err := os.Chmod(localPath, 0644); err != nil {
+				t.Errorf("failed to restore file mode: %v", err)
+			}
+		}()
 
 		changes := categorizeFileChanges([]string{"secret.md"}, cwd, cache)
 		// Unreadable local file should be silently skipped
@@ -255,7 +259,11 @@ func TestCategorizeFileChanges(t *testing.T) {
 		if err := os.Chmod(cachePath, 0000); err != nil {
 			t.Fatal(err)
 		}
-		defer os.Chmod(cachePath, 0644)
+		defer func() {
+			if err := os.Chmod(cachePath, 0644); err != nil {
+				t.Errorf("failed to restore file mode: %v", err)
+			}
+		}()
 
 		changes := categorizeFileChanges([]string{"secret.md"}, cwd, cache)
 		// Unreadable cache file should be silently skipped
@@ -305,7 +313,11 @@ func TestRunUpdate(t *testing.T) {
 		if err := os.Chdir(dir); err != nil {
 			t.Fatal(err)
 		}
-		defer os.Chdir(oldDir)
+		defer func() {
+			if err := os.Chdir(oldDir); err != nil {
+				t.Errorf("failed to restore working directory: %v", err)
+			}
+		}()
 
 		cmd := newUpdateCmd()
 		err := cmd.RunE(cmd, nil)
@@ -323,7 +335,11 @@ func TestRunUpdate(t *testing.T) {
 		if err := os.Chdir(dir); err != nil {
 			t.Fatal(err)
 		}
-		defer os.Chdir(oldDir)
+		defer func() {
+			if err := os.Chdir(oldDir); err != nil {
+				t.Errorf("failed to restore working directory: %v", err)
+			}
+		}()
 
 		// Write invalid YAML
 		if err := os.WriteFile(filepath.Join(dir, "samuel.yaml"), []byte("{{invalid yaml}}"), 0644); err != nil {

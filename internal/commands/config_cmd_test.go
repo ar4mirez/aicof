@@ -142,7 +142,11 @@ func setupConfigTestDir(t *testing.T, config *core.Config) string {
 	if err := os.Chdir(dir); err != nil {
 		t.Fatalf("failed to chdir: %v", err)
 	}
-	t.Cleanup(func() { os.Chdir(oldDir) })
+	t.Cleanup(func() {
+		if err := os.Chdir(oldDir); err != nil {
+			t.Errorf("failed to restore working directory: %v", err)
+		}
+	})
 	return dir
 }
 
@@ -172,16 +176,25 @@ func TestRunConfigList(t *testing.T) {
 		if err := os.WriteFile(dir+"/samuel.yaml", []byte("{{invalid yaml"), 0644); err != nil {
 			t.Fatal(err)
 		}
-		oldDir, _ := os.Getwd()
-		os.Chdir(dir)
-		defer os.Chdir(oldDir)
+		oldDir, err := os.Getwd()
+		if err != nil {
+			t.Fatalf("failed to get cwd: %v", err)
+		}
+		if err := os.Chdir(dir); err != nil {
+			t.Fatalf("failed to chdir: %v", err)
+		}
+		defer func() {
+			if err := os.Chdir(oldDir); err != nil {
+				t.Errorf("failed to restore working directory: %v", err)
+			}
+		}()
 
-		err := runConfigList(nil, nil)
-		if err == nil {
+		runErr := runConfigList(nil, nil)
+		if runErr == nil {
 			t.Error("runConfigList() with corrupt config should error")
 		}
-		if !strings.Contains(err.Error(), "failed to load config") {
-			t.Errorf("unexpected error: %v", err)
+		if !strings.Contains(runErr.Error(), "failed to load config") {
+			t.Errorf("unexpected error: %v", runErr)
 		}
 	})
 }

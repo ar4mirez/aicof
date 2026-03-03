@@ -68,7 +68,11 @@ func TestUpdateTaskStatus_Complete(t *testing.T) {
 	if err := os.Chdir(dir); err != nil {
 		t.Fatalf("failed to chdir: %v", err)
 	}
-	t.Cleanup(func() { os.Chdir(origDir) })
+	t.Cleanup(func() {
+		if err := os.Chdir(origDir); err != nil {
+			t.Errorf("failed to restore working directory: %v", err)
+		}
+	})
 
 	err = updateTaskStatus("1", func(prd *core.AutoPRD, id string) error {
 		return prd.CompleteTask(id, "abc123", 1)
@@ -109,7 +113,11 @@ func TestUpdateTaskStatus_Skip(t *testing.T) {
 	if err := os.Chdir(dir); err != nil {
 		t.Fatalf("failed to chdir: %v", err)
 	}
-	t.Cleanup(func() { os.Chdir(origDir) })
+	t.Cleanup(func() {
+		if err := os.Chdir(origDir); err != nil {
+			t.Errorf("failed to restore working directory: %v", err)
+		}
+	})
 
 	err = updateTaskStatus("1", func(prd *core.AutoPRD, id string) error {
 		return prd.SkipTask(id)
@@ -140,7 +148,11 @@ func TestUpdateTaskStatus_Reset(t *testing.T) {
 	if err := os.Chdir(dir); err != nil {
 		t.Fatalf("failed to chdir: %v", err)
 	}
-	t.Cleanup(func() { os.Chdir(origDir) })
+	t.Cleanup(func() {
+		if err := os.Chdir(origDir); err != nil {
+			t.Errorf("failed to restore working directory: %v", err)
+		}
+	})
 
 	err = updateTaskStatus("1", func(prd *core.AutoPRD, id string) error {
 		return prd.ResetTask(id)
@@ -175,7 +187,11 @@ func TestUpdateTaskStatus_TaskNotFound(t *testing.T) {
 	if err := os.Chdir(dir); err != nil {
 		t.Fatalf("failed to chdir: %v", err)
 	}
-	t.Cleanup(func() { os.Chdir(origDir) })
+	t.Cleanup(func() {
+		if err := os.Chdir(origDir); err != nil {
+			t.Errorf("failed to restore working directory: %v", err)
+		}
+	})
 
 	err = updateTaskStatus("nonexistent", func(prd *core.AutoPRD, id string) error {
 		return prd.CompleteTask(id, "", 0)
@@ -195,7 +211,11 @@ func TestUpdateTaskStatus_NoPRD(t *testing.T) {
 	if err := os.Chdir(dir); err != nil {
 		t.Fatalf("failed to chdir: %v", err)
 	}
-	t.Cleanup(func() { os.Chdir(origDir) })
+	t.Cleanup(func() {
+		if err := os.Chdir(origDir); err != nil {
+			t.Errorf("failed to restore working directory: %v", err)
+		}
+	})
 
 	err = updateTaskStatus("1", func(prd *core.AutoPRD, id string) error {
 		return prd.CompleteTask(id, "", 0)
@@ -217,7 +237,11 @@ func TestRunAutoTaskAdd(t *testing.T) {
 	if err := os.Chdir(dir); err != nil {
 		t.Fatalf("failed to chdir: %v", err)
 	}
-	t.Cleanup(func() { os.Chdir(origDir) })
+	t.Cleanup(func() {
+		if err := os.Chdir(origDir); err != nil {
+			t.Errorf("failed to restore working directory: %v", err)
+		}
+	})
 
 	err = runAutoTaskAdd(nil, []string{"2", "New task title"})
 	if err != nil {
@@ -260,7 +284,11 @@ func TestRunAutoTaskAdd_DuplicateID(t *testing.T) {
 	if err := os.Chdir(dir); err != nil {
 		t.Fatalf("failed to chdir: %v", err)
 	}
-	t.Cleanup(func() { os.Chdir(origDir) })
+	t.Cleanup(func() {
+		if err := os.Chdir(origDir); err != nil {
+			t.Errorf("failed to restore working directory: %v", err)
+		}
+	})
 
 	err = runAutoTaskAdd(nil, []string{"1", "Duplicate ID task"})
 	if err == nil {
@@ -278,7 +306,11 @@ func TestRunAutoTaskAdd_NoPRD(t *testing.T) {
 	if err := os.Chdir(dir); err != nil {
 		t.Fatalf("failed to chdir: %v", err)
 	}
-	t.Cleanup(func() { os.Chdir(origDir) })
+	t.Cleanup(func() {
+		if err := os.Chdir(origDir); err != nil {
+			t.Errorf("failed to restore working directory: %v", err)
+		}
+	})
 
 	err = runAutoTaskAdd(nil, []string{"1", "Task without PRD"})
 	if err == nil {
@@ -302,7 +334,11 @@ func TestRunAutoTaskList(t *testing.T) {
 	if err := os.Chdir(dir); err != nil {
 		t.Fatalf("failed to chdir: %v", err)
 	}
-	t.Cleanup(func() { os.Chdir(origDir) })
+	t.Cleanup(func() {
+		if err := os.Chdir(origDir); err != nil {
+			t.Errorf("failed to restore working directory: %v", err)
+		}
+	})
 
 	// runAutoTaskList prints to stdout — verify it doesn't error
 	err = runAutoTaskList(nil, nil)
@@ -321,7 +357,11 @@ func TestRunAutoTaskList_NoPRD(t *testing.T) {
 	if err := os.Chdir(dir); err != nil {
 		t.Fatalf("failed to chdir: %v", err)
 	}
-	t.Cleanup(func() { os.Chdir(origDir) })
+	t.Cleanup(func() {
+		if err := os.Chdir(origDir); err != nil {
+			t.Errorf("failed to restore working directory: %v", err)
+		}
+	})
 
 	err = runAutoTaskList(nil, nil)
 	if err == nil {
@@ -341,7 +381,11 @@ func TestRunAutoTaskComplete(t *testing.T) {
 	if err := os.Chdir(dir); err != nil {
 		t.Fatalf("failed to chdir: %v", err)
 	}
-	t.Cleanup(func() { os.Chdir(origDir) })
+	t.Cleanup(func() {
+		if err := os.Chdir(origDir); err != nil {
+			t.Errorf("failed to restore working directory: %v", err)
+		}
+	})
 
 	err = runAutoTaskComplete(nil, []string{"1"})
 	if err != nil {
@@ -370,7 +414,11 @@ func TestRunAutoTaskSkip(t *testing.T) {
 	if err := os.Chdir(dir); err != nil {
 		t.Fatalf("failed to chdir: %v", err)
 	}
-	t.Cleanup(func() { os.Chdir(origDir) })
+	t.Cleanup(func() {
+		if err := os.Chdir(origDir); err != nil {
+			t.Errorf("failed to restore working directory: %v", err)
+		}
+	})
 
 	err = runAutoTaskSkip(nil, []string{"1"})
 	if err != nil {
@@ -399,7 +447,11 @@ func TestRunAutoTaskReset(t *testing.T) {
 	if err := os.Chdir(dir); err != nil {
 		t.Fatalf("failed to chdir: %v", err)
 	}
-	t.Cleanup(func() { os.Chdir(origDir) })
+	t.Cleanup(func() {
+		if err := os.Chdir(origDir); err != nil {
+			t.Errorf("failed to restore working directory: %v", err)
+		}
+	})
 
 	err = runAutoTaskReset(nil, []string{"1"})
 	if err != nil {
@@ -440,7 +492,11 @@ func TestUpdateTaskStatus_CorruptPRD(t *testing.T) {
 	if err := os.Chdir(dir); err != nil {
 		t.Fatalf("failed to chdir: %v", err)
 	}
-	t.Cleanup(func() { os.Chdir(origDir) })
+	t.Cleanup(func() {
+		if err := os.Chdir(origDir); err != nil {
+			t.Errorf("failed to restore working directory: %v", err)
+		}
+	})
 
 	err = updateTaskStatus("1", func(prd *core.AutoPRD, id string) error {
 		return prd.CompleteTask(id, "", 0)
@@ -464,7 +520,11 @@ func TestUpdateTaskStatus_ProgressRecalculated(t *testing.T) {
 	if err := os.Chdir(dir); err != nil {
 		t.Fatalf("failed to chdir: %v", err)
 	}
-	t.Cleanup(func() { os.Chdir(origDir) })
+	t.Cleanup(func() {
+		if err := os.Chdir(origDir); err != nil {
+			t.Errorf("failed to restore working directory: %v", err)
+		}
+	})
 
 	// Complete task 1
 	err = updateTaskStatus("1", func(prd *core.AutoPRD, id string) error {
@@ -498,7 +558,11 @@ func TestRunAutoTaskAdd_SavedCorrectly(t *testing.T) {
 	if err := os.Chdir(dir); err != nil {
 		t.Fatalf("failed to chdir: %v", err)
 	}
-	t.Cleanup(func() { os.Chdir(origDir) })
+	t.Cleanup(func() {
+		if err := os.Chdir(origDir); err != nil {
+			t.Errorf("failed to restore working directory: %v", err)
+		}
+	})
 
 	err = runAutoTaskAdd(nil, []string{"100", "Brand new task"})
 	if err != nil {

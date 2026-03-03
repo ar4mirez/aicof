@@ -323,7 +323,11 @@ func TestRunAdd_CorruptConfig(t *testing.T) {
 	if err := os.Chdir(dir); err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { os.Chdir(oldDir) })
+	t.Cleanup(func() {
+		if err := os.Chdir(oldDir); err != nil {
+			t.Errorf("failed to restore working directory: %v", err)
+		}
+	})
 
 	err := runAdd(nil, []string{"language", "go"})
 	if err == nil {
