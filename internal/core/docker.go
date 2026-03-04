@@ -168,7 +168,11 @@ func GetAgentArgs(aiTool, promptPath string) ([]string, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to read prompt file: %w", err)
 		}
-		return []string{"exec", "--full-auto", string(content)}, nil
+		return []string{
+			"--sandbox", "danger-full-access",
+			"--ask-for-approval", "never",
+			"exec", string(content),
+		}, nil
 	case "amp":
 		return []string{"--prompt-file", promptPath}, nil
 	default:

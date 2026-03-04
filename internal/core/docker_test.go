@@ -136,13 +136,20 @@ func TestBuildDockerSandboxArgs(t *testing.T) {
 				WorkDir:   "/proj",
 				Name:      "test-run",
 				Template:  "node:20",
-				AgentArgs: []string{"exec", "--full-auto", "do the work"},
+				AgentArgs: []string{
+					"--sandbox", "danger-full-access",
+					"--ask-for-approval", "never",
+					"exec", "do the work",
+				},
 			},
 			wantArgs: []string{
 				"sandbox", "run", "--name", "test-run",
 				"--template", "node:20",
 				"codex", "/proj",
-				"--", "exec", "--full-auto", "do the work",
+				"--",
+				"--sandbox", "danger-full-access",
+				"--ask-for-approval", "never",
+				"exec", "do the work",
 			},
 		},
 	}
@@ -203,7 +210,11 @@ func TestGetAgentArgs_OtherTools(t *testing.T) {
 		{
 			"codex",
 			"/path/prompt.md",
-			[]string{"exec", "--full-auto", "write code"},
+			[]string{
+				"--sandbox", "danger-full-access",
+				"--ask-for-approval", "never",
+				"exec", "write code",
+			},
 		},
 		{
 			"amp",

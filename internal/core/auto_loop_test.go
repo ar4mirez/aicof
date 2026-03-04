@@ -414,13 +414,20 @@ func TestBuildDockerRunArgs(t *testing.T) {
 			workDir:   "/home/user/project",
 			image:     "node:lts",
 			aiTool:    "codex",
-			agentArgs: []string{"exec", "--full-auto", "do the work"},
+			agentArgs: []string{
+				"--sandbox", "danger-full-access",
+				"--ask-for-approval", "never",
+				"exec", "do the work",
+			},
 			wantParts: []string{
 				"run", "--rm", "--init", "-i",
 				"-v", "/home/user/project:/workspace",
 				"-w", "/workspace",
 				"node:lts",
-				"codex", "exec", "--full-auto", "do the work",
+				"codex",
+				"--sandbox", "danger-full-access",
+				"--ask-for-approval", "never",
+				"exec", "do the work",
 			},
 		},
 		{
