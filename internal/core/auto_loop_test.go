@@ -415,8 +415,7 @@ func TestBuildDockerRunArgs(t *testing.T) {
 			image:     "node:lts",
 			aiTool:    "codex",
 			agentArgs: []string{
-				"--sandbox", "danger-full-access",
-				"--ask-for-approval", "never",
+				"--dangerously-bypass-approvals-and-sandbox",
 				"exec", "do the work",
 			},
 			wantParts: []string{
@@ -425,8 +424,7 @@ func TestBuildDockerRunArgs(t *testing.T) {
 				"-w", "/workspace",
 				"node:lts",
 				"codex",
-				"--sandbox", "danger-full-access",
-				"--ask-for-approval", "never",
+				"--dangerously-bypass-approvals-and-sandbox",
 				"exec", "do the work",
 			},
 		},

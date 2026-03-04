@@ -169,8 +169,7 @@ func GetAgentArgs(aiTool, promptPath string) ([]string, error) {
 			return nil, fmt.Errorf("failed to read prompt file: %w", err)
 		}
 		return []string{
-			"--sandbox", "danger-full-access",
-			"--ask-for-approval", "never",
+			"--dangerously-bypass-approvals-and-sandbox",
 			"exec", string(content),
 		}, nil
 	case "amp":
