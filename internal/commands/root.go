@@ -37,8 +37,16 @@ func Execute() error {
 
 // JSONMode returns true when the --json flag is set on the command.
 func JSONMode(cmd *cobra.Command) bool {
-	val, _ := cmd.Flags().GetBool("json")
-	return val
+	if cmd == nil {
+		return false
+	}
+	if f := cmd.Flags().Lookup("json"); f != nil {
+		return f.Value.String() == "true"
+	}
+	if f := cmd.Root().PersistentFlags().Lookup("json"); f != nil {
+		return f.Value.String() == "true"
+	}
+	return false
 }
 
 func init() {

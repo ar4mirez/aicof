@@ -52,13 +52,12 @@ func TestJSONMode(t *testing.T) {
 	})
 
 	t.Run("returns_true_when_flag_set", func(t *testing.T) {
-		cmd := rootCmd
-		if err := cmd.Flags().Set("json", "true"); err != nil {
+		if err := rootCmd.PersistentFlags().Set("json", "true"); err != nil {
 			t.Fatal(err)
 		}
-		defer func() { _ = cmd.Flags().Set("json", "false") }()
+		defer func() { _ = rootCmd.PersistentFlags().Set("json", "false") }()
 
-		if !JSONMode(cmd) {
+		if !JSONMode(rootCmd) {
 			t.Error("expected JSONMode to be true")
 		}
 	})
