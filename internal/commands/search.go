@@ -75,13 +75,7 @@ func runSearch(cmd *cobra.Command, args []string) error {
 		}
 		items := make([]resultJSON, 0, len(results))
 		for _, r := range results {
-			items = append(items, resultJSON{
-				Name:        r.Name,
-				Type:        r.Type,
-				Description: r.Description,
-				Score:       r.Score,
-				Installed:   r.Installed,
-			})
+			items = append(items, resultJSON(r))
 		}
 		ui.PrintJSON("search", map[string]interface{}{
 			"query":   query,
