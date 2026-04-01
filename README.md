@@ -3,15 +3,16 @@
 > **Build smarter, faster, and more scalable software**
 > Cross-tool compatible • Opinionated guardrails • Tech-stack agnostic • Token-optimized
 
-[![Version](https://img.shields.io/badge/version-2.6.3-blue.svg)](CLAUDE.md)
+[![Version](https://img.shields.io/badge/version-2.6.4-blue.svg)](CLAUDE.md)
 [![AGENTS.md](https://img.shields.io/badge/AGENTS.md-compatible-brightgreen.svg)](https://agents.md)
 [![Status](https://img.shields.io/badge/status-production%20ready-brightgreen.svg)](CLAUDE.md)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
 ---
 
-## What's New in v2.6.3
+## What's New in v2.6.4
 
+- **JSON Output Mode** - Global `--json` flag on all CLI commands for programmatic consumption by AI agents and CI/CD pipelines
 - **Renamed to Samuel** - Cleaner, memorable name (formerly AICoF). Binary: `samuel`, config: `samuel.yaml`
 - **Autonomous AI Coding Loop** - Ralph Wiggum methodology for unattended task completion (`samuel auto`)
 - **Migrated to `.claude/` directory** - Skills and context now live under `.claude/skills/` instead of `.agent/skills/`
@@ -577,7 +578,7 @@ samuel/
 
 | Metric | Value |
 |--------|-------|
-| **Version** | 2.6.3 |
+| **Version** | 2.6.4 |
 | **Status** | Production Ready |
 | **AGENTS.md** | Compatible |
 | **Total Files** | 67 markdown files |
