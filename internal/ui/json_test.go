@@ -28,25 +28,6 @@ func captureOutput(t *testing.T, fn func()) string {
 	return buf.String()
 }
 
-func captureStderr(t *testing.T, fn func()) string {
-	t.Helper()
-	old := os.Stderr
-	r, w, err := os.Pipe()
-	if err != nil {
-		t.Fatal(err)
-	}
-	os.Stderr = w
-
-	fn()
-
-	_ = w.Close()
-	os.Stderr = old
-
-	var buf bytes.Buffer
-	_, _ = io.Copy(&buf, r)
-	return buf.String()
-}
-
 func TestPrintJSON_Success(t *testing.T) {
 	output := captureOutput(t, func() {
 		PrintJSON("test-cmd", map[string]string{"key": "value"})
