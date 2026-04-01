@@ -185,6 +185,35 @@ func runAutoStatus(cmd *cobra.Command, args []string) error {
 	}
 
 	prd.RecalculateProgress()
+
+	if JSONMode(cmd) {
+		counts := countTaskStatuses(prd)
+		pct := 0
+		if prd.Progress.TotalTasks > 0 {
+			pct = (prd.Progress.CompletedTasks * 100) / prd.Progress.TotalTasks
+		}
+		var nextTask *map[string]string
+		if t := prd.GetNextTask(); t != nil {
+			nextTask = &map[string]string{"id": t.ID, "title": t.Title}
+		}
+		ui.PrintJSON("auto status", map[string]interface{}{
+			"project":            prd.Project.Name,
+			"status":             prd.Progress.Status,
+			"pilotMode":          prd.Config.PilotMode,
+			"aiTool":             prd.Config.AITool,
+			"sandbox":            prd.Config.Sandbox,
+			"maxIterations":      prd.Config.MaxIterations,
+			"totalTasks":         prd.Progress.TotalTasks,
+			"completedTasks":     prd.Progress.CompletedTasks,
+			"progressPercent":    pct,
+			"totalIterationsRun": prd.Progress.TotalIterationsRun,
+			"lastIterationAt":    prd.Progress.LastIterationAt,
+			"taskCounts":         counts,
+			"nextTask":           nextTask,
+		})
+		return nil
+	}
+
 	printStatus(prd)
 	return nil
 }

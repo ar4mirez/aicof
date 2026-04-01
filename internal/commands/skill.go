@@ -139,13 +139,30 @@ func runSkillCreate(cmd *cobra.Command, args []string) error {
 	}
 
 	// Create skill scaffold
-	ui.Info("Creating skill '%s'...", name)
+	if !JSONMode(cmd) {
+		ui.Info("Creating skill '%s'...", name)
+	}
 
 	if err := core.CreateSkillScaffold(skillsDir, name); err != nil {
 		return fmt.Errorf("failed to create skill: %w", err)
 	}
 
 	skillPath := filepath.Join(skillsDir, name)
+
+	if JSONMode(cmd) {
+		ui.PrintJSON("skill create", map[string]interface{}{
+			"name": name,
+			"path": skillPath,
+			"files": []string{
+				name + "/SKILL.md",
+				name + "/scripts/.gitkeep",
+				name + "/references/.gitkeep",
+				name + "/assets/.gitkeep",
+			},
+		})
+		return nil
+	}
+
 	ui.Success("Created skill scaffold at %s/", skillPath)
 	ui.Print("")
 	ui.Print("  Files created:")
@@ -204,6 +221,37 @@ func runSkillValidate(cmd *cobra.Command, args []string) error {
 	validCount := 0
 	invalidCount := 0
 
+	if JSONMode(cmd) {
+		type validateJSON struct {
+			Name   string   `json:"name"`
+			Valid  bool     `json:"valid"`
+			Errors []string `json:"errors,omitempty"`
+		}
+		items := make([]validateJSON, 0, len(skills))
+		for _, skill := range skills {
+			valid := len(skill.Errors) == 0
+			if valid {
+				validCount++
+			} else {
+				invalidCount++
+			}
+			items = append(items, validateJSON{
+				Name:   skill.DirName,
+				Valid:  valid,
+				Errors: skill.Errors,
+			})
+		}
+		ui.PrintJSON("skill validate", map[string]interface{}{
+			"valid":   validCount,
+			"invalid": invalidCount,
+			"skills":  items,
+		})
+		if invalidCount > 0 {
+			return fmt.Errorf("%d skill(s) failed validation", invalidCount)
+		}
+		return nil
+	}
+
 	for _, skill := range skills {
 		if len(skill.Errors) == 0 {
 			validCount++
@@ -245,6 +293,31 @@ func runSkillList(cmd *cobra.Command, args []string) error {
 	skills, err := core.ScanSkillsDirectory(skillsDir)
 	if err != nil {
 		return fmt.Errorf("failed to scan skills: %w", err)
+	}
+
+	if JSONMode(cmd) {
+		type skillJSON struct {
+			Name        string   `json:"name"`
+			Description string   `json:"description"`
+			Valid       bool     `json:"valid"`
+			Errors      []string `json:"errors,omitempty"`
+		}
+		items := make([]skillJSON, 0, len(skills))
+		for _, skill := range skills {
+			desc := strings.ReplaceAll(skill.Metadata.Description, "\n", " ")
+			desc = strings.TrimSpace(desc)
+			items = append(items, skillJSON{
+				Name:        skill.Metadata.Name,
+				Description: desc,
+				Valid:       len(skill.Errors) == 0,
+				Errors:      skill.Errors,
+			})
+		}
+		ui.PrintJSON("skill list", map[string]interface{}{
+			"total":  len(items),
+			"skills": items,
+		})
+		return nil
 	}
 
 	if len(skills) == 0 {
@@ -298,6 +371,30 @@ func runSkillInfo(cmd *cobra.Command, args []string) error {
 	info, err := core.LoadSkillInfo(skillPath)
 	if err != nil {
 		return fmt.Errorf("failed to load skill: %w", err)
+	}
+
+	if JSONMode(cmd) {
+		data := map[string]interface{}{
+			"name":          info.Metadata.Name,
+			"dirName":       info.DirName,
+			"description":   strings.TrimSpace(info.Metadata.Description),
+			"path":          info.Path,
+			"license":       info.Metadata.License,
+			"compatibility": info.Metadata.Compatibility,
+			"hasScripts":    info.HasScripts,
+			"hasReferences": info.HasRefs,
+			"hasAssets":     info.HasAssets,
+			"valid":         len(info.Errors) == 0,
+			"errors":        info.Errors,
+		}
+		if info.Body != "" {
+			data["bodyLines"] = core.CountLines(info.Body)
+		}
+		if len(info.Metadata.Metadata) > 0 {
+			data["metadata"] = info.Metadata.Metadata
+		}
+		ui.PrintJSON("skill info", data)
+		return nil
 	}
 
 	ui.Header(fmt.Sprintf("Skill: %s", info.DirName))

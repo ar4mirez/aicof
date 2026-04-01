@@ -20,6 +20,7 @@ type initFlags struct {
 	cliProvided    bool
 	absTargetDir   string
 	createDir      bool
+	jsonMode       bool
 }
 
 // initSelections holds the user's component selections.
@@ -37,6 +38,7 @@ func parseInitFlags(cmd *cobra.Command, args []string) (*initFlags, error) {
 	flags.templateName, _ = cmd.Flags().GetString("template")
 	flags.languageFlags, _ = cmd.Flags().GetStringSlice("languages")
 	flags.frameworkFlags, _ = cmd.Flags().GetStringSlice("frameworks")
+	flags.jsonMode = JSONMode(cmd)
 	flags.cliProvided = flags.templateName != "" || len(flags.languageFlags) > 0 || len(flags.frameworkFlags) > 0
 
 	targetDir := "."

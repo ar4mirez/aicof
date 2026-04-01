@@ -86,6 +86,14 @@ func runRemove(cmd *cobra.Command, args []string) error {
 
 	// Check if installed
 	if !isInstalled {
+		if JSONMode(cmd) {
+			ui.PrintJSON("remove", map[string]interface{}{
+				"type":         componentType,
+				"name":         componentName,
+				"wasInstalled": false,
+			})
+			return nil
+		}
 		ui.Warn("%s '%s' is not installed", componentType, componentName)
 		return nil
 	}
@@ -131,6 +139,16 @@ func runRemove(cmd *cobra.Command, args []string) error {
 
 	if err := config.Save(cwd); err != nil {
 		return fmt.Errorf("failed to update config: %w", err)
+	}
+
+	if JSONMode(cmd) {
+		ui.PrintJSON("remove", map[string]interface{}{
+			"type":    componentType,
+			"name":    componentName,
+			"path":    component.Path,
+			"removed": true,
+		})
+		return nil
 	}
 
 	ui.Success("Updated samuel.yaml")

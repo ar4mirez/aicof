@@ -28,6 +28,10 @@ func init() {
 func runVersion(cmd *cobra.Command, args []string) error {
 	checkUpdate, _ := cmd.Flags().GetBool("check")
 
+	if JSONMode(cmd) {
+		return runVersionJSON(checkUpdate)
+	}
+
 	// Show CLI version
 	ui.Bold("Samuel CLI")
 	ui.TableRow("Version", Version)
@@ -94,5 +98,46 @@ func runVersion(cmd *cobra.Command, args []string) error {
 		}
 	}
 
+	return nil
+}
+
+func runVersionJSON(checkUpdate bool) error {
+	type frameworkInfo struct {
+		Version    string   `json:"version"`
+		Languages  []string `json:"languages"`
+		Frameworks []string `json:"frameworks"`
+		Workflows  []string `json:"workflows"`
+	}
+	type versionData struct {
+		CLI       map[string]string `json:"cli"`
+		Framework *frameworkInfo    `json:"framework,omitempty"`
+	}
+
+	data := versionData{
+		CLI: map[string]string{
+			"version":   Version,
+			"commit":    Commit,
+			"buildDate": BuildDate,
+		},
+	}
+
+	config, err := core.LoadConfig()
+	if err == nil {
+		workflows := config.Installed.Workflows
+		if len(workflows) == 1 && workflows[0] == "all" {
+			workflows = make([]string, 0, len(core.Workflows))
+			for _, wf := range core.Workflows {
+				workflows = append(workflows, wf.Name)
+			}
+		}
+		data.Framework = &frameworkInfo{
+			Version:    config.Version,
+			Languages:  config.Installed.Languages,
+			Frameworks: config.Installed.Frameworks,
+			Workflows:  workflows,
+		}
+	}
+
+	ui.PrintJSON("version", data)
 	return nil
 }

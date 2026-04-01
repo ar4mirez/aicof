@@ -89,11 +89,20 @@ func runConfigList(cmd *cobra.Command, args []string) error {
 	config, err := core.LoadConfig()
 	if err != nil {
 		if os.IsNotExist(err) {
-			ui.Warn("No Samuel installation found in current directory")
-			ui.Info("Run 'samuel init' to initialize a project")
+			if JSONMode(cmd) {
+				ui.PrintJSONError("config list", fmt.Errorf("no Samuel installation found"))
+			} else {
+				ui.Warn("No Samuel installation found in current directory")
+				ui.Info("Run 'samuel init' to initialize a project")
+			}
 			return nil
 		}
 		return fmt.Errorf("failed to load config: %w", err)
+	}
+
+	if JSONMode(cmd) {
+		ui.PrintJSON("config list", config.GetAllValues())
+		return nil
 	}
 
 	ui.Bold("Samuel Configuration")
@@ -120,15 +129,17 @@ func runConfigGet(cmd *cobra.Command, args []string) error {
 
 	// Validate key
 	if !isValidConfigKey(key) {
-		ui.Error("Invalid config key: %s", key)
-		ui.Info("Valid keys: %s", strings.Join(core.ValidConfigKeys, ", "))
 		return fmt.Errorf("invalid config key: %s", key)
 	}
 
 	config, err := core.LoadConfig()
 	if err != nil {
 		if os.IsNotExist(err) {
-			ui.Warn("No Samuel installation found in current directory")
+			if JSONMode(cmd) {
+				ui.PrintJSONError("config get", fmt.Errorf("no Samuel installation found"))
+			} else {
+				ui.Warn("No Samuel installation found in current directory")
+			}
 			return nil
 		}
 		return fmt.Errorf("failed to load config: %w", err)
@@ -137,6 +148,14 @@ func runConfigGet(cmd *cobra.Command, args []string) error {
 	value, err := config.GetValue(key)
 	if err != nil {
 		return err
+	}
+
+	if JSONMode(cmd) {
+		ui.PrintJSON("config get", map[string]interface{}{
+			"key":   key,
+			"value": value,
+		})
+		return nil
 	}
 
 	// Output raw value for scripting
@@ -188,6 +207,15 @@ func runConfigSet(cmd *cobra.Command, args []string) error {
 
 	if err := config.Save(cwd); err != nil {
 		return fmt.Errorf("failed to save config: %w", err)
+	}
+
+	if JSONMode(cmd) {
+		ui.PrintJSON("config set", map[string]interface{}{
+			"key":      key,
+			"oldValue": oldValue,
+			"newValue": value,
+		})
+		return nil
 	}
 
 	ui.Success("Updated %s", key)

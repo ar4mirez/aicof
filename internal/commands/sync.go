@@ -61,6 +61,28 @@ func runSync(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("sync failed: %w", err)
 	}
 
+	if JSONMode(cmd) {
+		toRel := func(paths []string) []string {
+			out := make([]string, 0, len(paths))
+			for _, p := range paths {
+				out = append(out, relPath(absRoot, p))
+			}
+			return out
+		}
+		errStrs := make([]string, 0, len(result.Errors))
+		for _, e := range result.Errors {
+			errStrs = append(errStrs, e.Error())
+		}
+		ui.PrintJSON("sync", map[string]interface{}{
+			"dryRun":  dryRun,
+			"created": toRel(result.Created),
+			"updated": toRel(result.Updated),
+			"skipped": toRel(result.Skipped),
+			"errors":  errStrs,
+		})
+		return nil
+	}
+
 	// Display results
 	for _, f := range result.Created {
 		rel := relPath(absRoot, f)

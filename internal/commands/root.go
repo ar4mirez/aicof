@@ -35,8 +35,15 @@ func Execute() error {
 	return rootCmd.Execute()
 }
 
+// JSONMode returns true when the --json flag is set on the command.
+func JSONMode(cmd *cobra.Command) bool {
+	val, _ := cmd.Flags().GetBool("json")
+	return val
+}
+
 func init() {
 	// Global flags
 	rootCmd.PersistentFlags().BoolP("verbose", "v", false, "Enable verbose output")
 	rootCmd.PersistentFlags().Bool("no-color", false, "Disable colored output")
+	rootCmd.PersistentFlags().Bool("json", false, "Output in JSON format for programmatic consumption")
 }

@@ -33,11 +33,65 @@ func runList(cmd *cobra.Command, args []string) error {
 	showAvailable, _ := cmd.Flags().GetBool("available")
 	typeFilter, _ := cmd.Flags().GetString("type")
 
+	if JSONMode(cmd) {
+		return listJSON(showAvailable, typeFilter)
+	}
+
 	if showAvailable {
 		return listAvailable(typeFilter)
 	}
 
 	return listInstalled(typeFilter)
+}
+
+func listJSON(showAvailable bool, typeFilter string) error {
+	type componentJSON struct {
+		Name        string `json:"name"`
+		Type        string `json:"type"`
+		Description string `json:"description"`
+		Installed   bool   `json:"installed"`
+	}
+
+	config, _ := core.LoadConfig()
+	var components []componentJSON
+
+	addComponents := func(compType string, items []core.Component, isInstalled func(string) bool) {
+		if typeFilter != "" && typeFilter != compType {
+			return
+		}
+		for _, c := range items {
+			installed := isInstalled(c.Name)
+			if !showAvailable && !installed {
+				continue
+			}
+			components = append(components, componentJSON{
+				Name:        c.Name,
+				Type:        compType,
+				Description: c.Description,
+				Installed:   installed,
+			})
+		}
+	}
+
+	hasLang := func(n string) bool { return config != nil && config.HasLanguage(n) }
+	hasFw := func(n string) bool { return config != nil && config.HasFramework(n) }
+	hasWf := func(n string) bool { return config != nil && config.HasWorkflow(n) }
+
+	addComponents("language", core.Languages, hasLang)
+	addComponents("framework", core.Frameworks, hasFw)
+	addComponents("workflow", core.Workflows, hasWf)
+
+	version := ""
+	if config != nil {
+		version = config.Version
+	}
+
+	ui.PrintJSON("list", map[string]interface{}{
+		"version":    version,
+		"available":  showAvailable,
+		"components": components,
+	})
+	return nil
 }
 
 func listInstalled(typeFilter string) error {
