@@ -76,11 +76,39 @@ func runUpdate(cmd *cobra.Command, args []string) error {
 	changes := categorizeFileChanges(paths, cwd, cachePath)
 
 	if showDiff {
+		if JSONMode(cmd) {
+			ui.PrintJSON("update", map[string]interface{}{
+				"currentVersion": config.Version,
+				"targetVersion":  targetVersion,
+				"newFiles":       changes.newFiles,
+				"modifiedFiles":  changes.modifiedFiles,
+				"unchangedFiles": len(changes.unchangedFiles),
+				"dryRun":         true,
+			})
+			return nil
+		}
 		displayChangeDiff(changes, force)
 		return nil
 	}
 
-	return applyUpdate(extractor, changes, force, cwd, targetVersion, config)
+	previousVersion := config.Version
+
+	err = applyUpdate(extractor, changes, force, cwd, targetVersion, config)
+	if err != nil {
+		return err
+	}
+
+	if JSONMode(cmd) {
+		ui.PrintJSON("update", map[string]interface{}{
+			"previousVersion": previousVersion,
+			"newVersion":      targetVersion,
+			"newFiles":        len(changes.newFiles),
+			"modifiedFiles":   len(changes.modifiedFiles),
+			"unchangedFiles":  len(changes.unchangedFiles),
+		})
+	}
+
+	return nil
 }
 
 // downloadTargetVersion resolves the target version, checks if an update is needed,

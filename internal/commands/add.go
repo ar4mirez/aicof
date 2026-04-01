@@ -48,6 +48,14 @@ func runAdd(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	if alreadyInstalled {
+		if JSONMode(cmd) {
+			ui.PrintJSON("add", map[string]interface{}{
+				"type":             componentType,
+				"name":             componentName,
+				"alreadyInstalled": true,
+			})
+			return nil
+		}
 		ui.Warn("%s '%s' is already installed", componentType, componentName)
 		return nil
 	}
@@ -56,7 +64,20 @@ func runAdd(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	return updateAddConfig(config, componentType, componentName, component.Path)
+	if err := updateAddConfig(config, componentType, componentName, component.Path); err != nil {
+		return err
+	}
+
+	if JSONMode(cmd) {
+		ui.PrintJSON("add", map[string]interface{}{
+			"type":      componentType,
+			"name":      componentName,
+			"path":      component.Path,
+			"installed": true,
+		})
+	}
+
+	return nil
 }
 
 // resolveComponent validates the component type, finds it in the registry,

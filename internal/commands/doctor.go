@@ -42,7 +42,6 @@ type checkResult struct {
 
 func runDoctor(cmd *cobra.Command, args []string) error {
 	autoFix, _ := cmd.Flags().GetBool("fix")
-	ui.Header("Samuel Health Check")
 
 	cwd, err := os.Getwd()
 	if err != nil {
@@ -73,6 +72,40 @@ func runDoctor(cmd *cobra.Command, args []string) error {
 	if config != nil {
 		results = append(results, checkLocalModifications(cwd, config)...)
 	}
+
+	if JSONMode(cmd) {
+		type checkJSON struct {
+			Name    string `json:"name"`
+			Passed  bool   `json:"passed"`
+			Message string `json:"message"`
+			Fixable bool   `json:"fixable,omitempty"`
+		}
+		checks := make([]checkJSON, 0, len(results))
+		passed, failed := 0, 0
+		for _, r := range results {
+			checks = append(checks, checkJSON{
+				Name:    r.name,
+				Passed:  r.passed,
+				Message: r.message,
+				Fixable: r.fixable,
+			})
+			if r.passed {
+				passed++
+			} else {
+				failed++
+			}
+		}
+		healthy := failed == 0
+		ui.PrintJSON("doctor", map[string]interface{}{
+			"healthy": healthy,
+			"passed":  passed,
+			"failed":  failed,
+			"checks":  checks,
+		})
+		return nil
+	}
+
+	ui.Header("Samuel Health Check")
 
 	passedCount, failedCount, fixableCount := printCheckResults(results)
 	printCheckSummary(passedCount, failedCount, fixableCount, autoFix)

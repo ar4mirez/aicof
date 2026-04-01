@@ -208,6 +208,18 @@ func saveInitConfig(flags *initFlags, sel *initSelections, version string) error
 	if err := config.Save(flags.absTargetDir); err != nil {
 		return fmt.Errorf("failed to save config: %w", err)
 	}
+
+	if flags.jsonMode {
+		ui.PrintJSON("init", map[string]interface{}{
+			"version":    version,
+			"path":       flags.absTargetDir,
+			"languages":  sel.languages,
+			"frameworks": sel.frameworks,
+			"workflows":  []string{"all"},
+		})
+		return nil
+	}
+
 	ui.Success("Created samuel.yaml")
 
 	fmt.Println()

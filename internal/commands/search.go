@@ -63,6 +63,27 @@ func runSearch(cmd *cobra.Command, args []string) error {
 		ui.Warn("Could not load config: %v", configErr)
 	}
 	results := searchComponents(query, typeFilter, config)
+	results = sortAndLimitResults(results, limit)
+
+	if JSONMode(cmd) {
+		type resultJSON struct {
+			Name        string `json:"name"`
+			Type        string `json:"type"`
+			Description string `json:"description"`
+			Score       int    `json:"score"`
+			Installed   bool   `json:"installed"`
+		}
+		items := make([]resultJSON, 0, len(results))
+		for _, r := range results {
+			items = append(items, resultJSON(r))
+		}
+		ui.PrintJSON("search", map[string]interface{}{
+			"query":   query,
+			"results": items,
+			"total":   len(items),
+		})
+		return nil
+	}
 
 	if len(results) == 0 {
 		ui.Warn("No components found matching '%s'", query)
@@ -70,7 +91,6 @@ func runSearch(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	results = sortAndLimitResults(results, limit)
 	displaySearchResults(query, results)
 	return nil
 }

@@ -20,6 +20,33 @@ func runAutoTaskList(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("no auto loop found. Run 'samuel auto init' first")
 	}
 
+	if JSONMode(cmd) {
+		type taskJSON struct {
+			ID       string `json:"id"`
+			Title    string `json:"title"`
+			Status   string `json:"status"`
+			ParentID string `json:"parentId,omitempty"`
+			Priority string `json:"priority,omitempty"`
+		}
+		prd.RecalculateProgress()
+		tasks := make([]taskJSON, 0, len(prd.Tasks))
+		for _, t := range prd.Tasks {
+			tasks = append(tasks, taskJSON{
+				ID:       t.ID,
+				Title:    t.Title,
+				Status:   t.Status,
+				ParentID: t.ParentID,
+				Priority: t.Priority,
+			})
+		}
+		ui.PrintJSON("auto task list", map[string]interface{}{
+			"total":     prd.Progress.TotalTasks,
+			"completed": prd.Progress.CompletedTasks,
+			"tasks":     tasks,
+		})
+		return nil
+	}
+
 	ui.Header("Tasks")
 	for _, t := range prd.Tasks {
 		icon := taskStatusIcon(t.Status)
@@ -54,21 +81,33 @@ func taskStatusIcon(status string) string {
 }
 
 func runAutoTaskComplete(cmd *cobra.Command, args []string) error {
-	return updateTaskStatus(args[0], func(prd *core.AutoPRD, id string) error {
+	err := updateTaskStatus(args[0], func(prd *core.AutoPRD, id string) error {
 		return prd.CompleteTask(id, "", 0)
 	}, "completed")
+	if err == nil && JSONMode(cmd) {
+		runAutoTaskJSON(cmd, args[0], "complete")
+	}
+	return err
 }
 
 func runAutoTaskSkip(cmd *cobra.Command, args []string) error {
-	return updateTaskStatus(args[0], func(prd *core.AutoPRD, id string) error {
+	err := updateTaskStatus(args[0], func(prd *core.AutoPRD, id string) error {
 		return prd.SkipTask(id)
 	}, "skipped")
+	if err == nil && JSONMode(cmd) {
+		runAutoTaskJSON(cmd, args[0], "skip")
+	}
+	return err
 }
 
 func runAutoTaskReset(cmd *cobra.Command, args []string) error {
-	return updateTaskStatus(args[0], func(prd *core.AutoPRD, id string) error {
+	err := updateTaskStatus(args[0], func(prd *core.AutoPRD, id string) error {
 		return prd.ResetTask(id)
 	}, "reset to pending")
+	if err == nil && JSONMode(cmd) {
+		runAutoTaskJSON(cmd, args[0], "reset")
+	}
+	return err
 }
 
 func updateTaskStatus(id string, fn func(*core.AutoPRD, string) error, label string) error {
@@ -93,6 +132,17 @@ func updateTaskStatus(id string, fn func(*core.AutoPRD, string) error, label str
 
 	ui.Success("Task %s %s", id, label)
 	return nil
+}
+
+// runAutoTaskJSON outputs a JSON result for task mutation commands.
+// It is called from the individual task command handlers when --json is set.
+func runAutoTaskJSON(cmd *cobra.Command, id, action string) {
+	if JSONMode(cmd) {
+		ui.PrintJSON("auto task "+action, map[string]interface{}{
+			"taskId": id,
+			"action": action,
+		})
+	}
 }
 
 func runAutoTaskAdd(cmd *cobra.Command, args []string) error {
@@ -120,6 +170,15 @@ func runAutoTaskAdd(cmd *cobra.Command, args []string) error {
 
 	if err := prd.Save(prdPath); err != nil {
 		return fmt.Errorf("failed to save prd.json: %w", err)
+	}
+
+	if JSONMode(cmd) {
+		ui.PrintJSON("auto task add", map[string]interface{}{
+			"taskId": task.ID,
+			"title":  task.Title,
+			"action": "add",
+		})
+		return nil
 	}
 
 	ui.Success("Task %s added: %s", task.ID, task.Title)

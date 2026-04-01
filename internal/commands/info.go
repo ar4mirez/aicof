@@ -47,23 +47,68 @@ func runInfo(cmd *cobra.Command, args []string) error {
 	noRelated, _ := cmd.Flags().GetBool("no-related")
 
 	if componentType == "" {
-		ui.Error("Invalid component type: %s", args[0])
-		ui.Info("Valid types: language (lang, l), framework (fw, f), workflow (wf, w)")
+		if JSONMode(cmd) {
+			ui.PrintJSONError("info", fmt.Errorf("invalid component type: %s", args[0]))
+		} else {
+			ui.Error("Invalid component type: %s", args[0])
+			ui.Info("Valid types: language (lang, l), framework (fw, f), workflow (wf, w)")
+		}
 		return fmt.Errorf("invalid component type")
 	}
 
 	component := findComponent(componentType, componentName)
 	if component == nil {
-		ui.Error("Component not found: %s %s", componentType, componentName)
-		ui.Info("Use 'samuel search %s' to find available components", componentName)
+		if JSONMode(cmd) {
+			ui.PrintJSONError("info", fmt.Errorf("component not found: %s %s", componentType, componentName))
+		} else {
+			ui.Error("Component not found: %s %s", componentType, componentName)
+			ui.Info("Use 'samuel search %s' to find available components", componentName)
+		}
 		return fmt.Errorf("component not found")
 	}
 
 	config, configErr := core.LoadConfig()
-	if configErr != nil && !os.IsNotExist(configErr) {
+	if configErr != nil && !os.IsNotExist(configErr) && !JSONMode(cmd) {
 		ui.Warn("Could not load config: %v", configErr)
 	}
 	installed := checkInstallStatus(config, componentType, componentName)
+
+	if JSONMode(cmd) {
+		type relatedJSON struct {
+			Name        string `json:"name"`
+			Type        string `json:"type"`
+			Description string `json:"description"`
+			Installed   bool   `json:"installed"`
+		}
+		data := map[string]interface{}{
+			"name":        component.Name,
+			"type":        componentType,
+			"description": component.Description,
+			"path":        component.Path,
+			"installed":   installed,
+		}
+		if installed {
+			if info, err := os.Stat(component.Path); err == nil {
+				data["fileSize"] = info.Size()
+				data["modified"] = info.ModTime().Format(time.RFC3339)
+			}
+		}
+		if !noRelated {
+			related := getRelatedComponents(component, componentType)
+			relItems := make([]relatedJSON, 0, len(related))
+			for _, r := range related {
+				relItems = append(relItems, relatedJSON{
+					Name:        r.Name,
+					Type:        r.Type,
+					Description: r.Description,
+					Installed:   config != nil && isInstalled(config, r.Type, r.Name),
+				})
+			}
+			data["related"] = relItems
+		}
+		ui.PrintJSON("info", data)
+		return nil
+	}
 
 	displayComponentInfo(component, componentType, installed)
 	displayRelatedComponents(config, component, componentType, noRelated)
