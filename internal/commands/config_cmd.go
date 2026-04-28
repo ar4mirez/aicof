@@ -79,7 +79,7 @@ Examples:
 }
 
 func init() {
-	rootCmd.AddCommand(configCmd)
+	adminCmd.AddCommand(configCmd)
 	configCmd.AddCommand(configListCmd)
 	configCmd.AddCommand(configGetCmd)
 	configCmd.AddCommand(configSetCmd)

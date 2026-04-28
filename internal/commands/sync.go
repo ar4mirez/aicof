@@ -29,7 +29,7 @@ Examples:
 }
 
 func init() {
-	rootCmd.AddCommand(syncCmd)
+	adminCmd.AddCommand(syncCmd)
 	syncCmd.Flags().IntP("depth", "d", -1, "Max recursion depth (-1=unlimited)")
 	syncCmd.Flags().BoolP("force", "f", false, "Overwrite user-customized files")
 	syncCmd.Flags().Bool("dry-run", false, "Preview changes without writing files")
