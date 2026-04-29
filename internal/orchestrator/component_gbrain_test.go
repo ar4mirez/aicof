@@ -15,6 +15,24 @@ func withGbrainExec(t *testing.T, fn func(ctx context.Context, name string, args
 	t.Cleanup(func() { gbrainExec = prev })
 }
 
+// withGbrainLookPath replaces the gbrainLookPath stub for the duration of
+// the test. Default override pretends the queried binary lives at a stable
+// fake path; tests that need the "binary missing" path can pass their own
+// fn that returns ErrNotFound.
+func withGbrainLookPath(t *testing.T, fn func(string) (string, error)) {
+	t.Helper()
+	prev := gbrainLookPath
+	gbrainLookPath = fn
+	t.Cleanup(func() { gbrainLookPath = prev })
+}
+
+// fakeLookPathFound returns a LookPath stub that pretends every requested
+// binary exists at /fake/<name>. Used by tests that aren't exercising the
+// "binary missing" code path.
+func fakeLookPathFound(_ string) (string, error) {
+	return "/fake/binary", nil
+}
+
 func TestGbrain_Detect_NotOnPath(t *testing.T) {
 	g := NewGbrainComponent("/no/such/binary")
 	withGbrainExec(t, func(ctx context.Context, name string, args ...string) *exec.Cmd {
@@ -102,6 +120,7 @@ func TestGbrain_Install_FailsCleanly_BeforeMutation_WhenBinaryMissing(t *testing
 
 func TestGbrain_Install_AlreadyRegisteredIsNoOp(t *testing.T) {
 	g := NewGbrainComponent("/fake/gbrain")
+	withGbrainLookPath(t, fakeLookPathFound)
 	calls := []string{}
 	withGbrainExec(t, func(ctx context.Context, name string, args ...string) *exec.Cmd {
 		calls = append(calls, name+" "+strings.Join(args, " "))
@@ -140,6 +159,7 @@ func TestGbrain_Install_AlreadyRegisteredIsNoOp(t *testing.T) {
 
 func TestGbrain_Install_RegistersWhenAbsent(t *testing.T) {
 	g := NewGbrainComponent("/fake/gbrain")
+	withGbrainLookPath(t, fakeLookPathFound)
 	calls := []string{}
 	withGbrainExec(t, func(ctx context.Context, name string, args ...string) *exec.Cmd {
 		joined := name + " " + strings.Join(args, " ")
@@ -176,6 +196,7 @@ func TestGbrain_Install_RegistersWhenAbsent(t *testing.T) {
 
 func TestGbrain_Install_DryRunDoesNotRegister(t *testing.T) {
 	g := NewGbrainComponent("/fake/gbrain")
+	withGbrainLookPath(t, fakeLookPathFound)
 	calls := []string{}
 	withGbrainExec(t, func(ctx context.Context, name string, args ...string) *exec.Cmd {
 		joined := name + " " + strings.Join(args, " ")
@@ -223,6 +244,7 @@ func TestGbrain_Uninstall_ProjectOnlyIsNoOp(t *testing.T) {
 
 func TestGbrain_Uninstall_GlobalRemovesMCP(t *testing.T) {
 	g := NewGbrainComponent("/fake/gbrain")
+	withGbrainLookPath(t, fakeLookPathFound)
 	calls := []string{}
 	withGbrainExec(t, func(ctx context.Context, name string, args ...string) *exec.Cmd {
 		joined := name + " " + strings.Join(args, " ")
@@ -253,6 +275,7 @@ func TestGbrain_Uninstall_GlobalRemovesMCP(t *testing.T) {
 
 func TestGbrain_Uninstall_NotRegisteredIsIdempotent(t *testing.T) {
 	g := NewGbrainComponent("/fake/gbrain")
+	withGbrainLookPath(t, fakeLookPathFound)
 	withGbrainExec(t, func(ctx context.Context, name string, args ...string) *exec.Cmd {
 		// Simulate the "not found" path that claude mcp remove emits
 		// when there's no entry to remove.

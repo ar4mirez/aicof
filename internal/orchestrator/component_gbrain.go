@@ -12,6 +12,12 @@ import (
 // through. Tests inject fakes by overriding this.
 var gbrainExec = exec.CommandContext
 
+// gbrainLookPath is the PATH-lookup function used to probe for the
+// "claude" CLI before invoking `claude mcp add/remove/get`. Tests
+// override this so CI runners (where the claude CLI is not installed)
+// don't fail the gbrain test suite.
+var gbrainLookPath = exec.LookPath
+
 // GbrainComponent registers gbrain as a Claude Code MCP server. Samuel
 // does NOT install gbrain itself — the user is responsible for getting
 // it on PATH (e.g., `bun add -g gbrain` or `npm install -g gbrain`).
@@ -97,7 +103,7 @@ func (g *GbrainComponent) Install(ctx context.Context, opts InstallOptions) (Ins
 		}
 	}
 
-	if _, err := exec.LookPath("claude"); err != nil {
+	if _, err := gbrainLookPath("claude"); err != nil {
 		return res, &Error{
 			Component:   NameGbrain,
 			Problem:     "claude CLI not found on PATH",
@@ -170,7 +176,7 @@ func (g *GbrainComponent) Check(ctx context.Context) HealthStatus {
 		}
 	}
 
-	if _, err := exec.LookPath("claude"); err != nil {
+	if _, err := gbrainLookPath("claude"); err != nil {
 		return HealthStatus{
 			Component: NameGbrain,
 			OK:        false,
@@ -219,7 +225,7 @@ func (g *GbrainComponent) Uninstall(ctx context.Context, opts UninstallOptions) 
 		return res, nil
 	}
 
-	if _, err := exec.LookPath("claude"); err != nil {
+	if _, err := gbrainLookPath("claude"); err != nil {
 		// Without the claude CLI we can't deregister cleanly; surface
 		// a manual fallback rather than silently leaving stale config.
 		return res, &Error{
