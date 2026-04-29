@@ -3,8 +3,40 @@ package core
 import (
 	"fmt"
 	"sort"
+	"strconv"
+	"strings"
 	"time"
 )
+
+// NextAvailableID returns the next free top-level task ID for auto-id task
+// creation (used by `samuel run enqueue`). Top-level IDs are integers; the
+// returned value is one greater than the largest existing top-level integer
+// prefix. Tasks with non-integer or nested IDs ("1.1", "fix-x") do not move
+// the counter.
+//
+// Examples:
+//   prd has tasks "1", "2.0", "2.1", "3"          -> returns "4"
+//   prd has tasks "1.0", "1.1"                    -> returns "2"
+//   prd is empty                                   -> returns "1"
+//   prd has tasks "fix-auth", "1"                  -> returns "2"
+func (p *AutoPRD) NextAvailableID() string {
+	max := 0
+	for _, t := range p.Tasks {
+		// Strip any nested suffix; we only care about the top-level integer.
+		head := t.ID
+		if idx := strings.Index(head, "."); idx >= 0 {
+			head = head[:idx]
+		}
+		n, err := strconv.Atoi(head)
+		if err != nil {
+			continue
+		}
+		if n > max {
+			max = n
+		}
+	}
+	return strconv.Itoa(max + 1)
+}
 
 // priorityRank returns a numeric rank for sorting (lower = higher priority)
 func priorityRank(priority string) int {
