@@ -10,20 +10,27 @@ import (
 )
 
 var addCmd = &cobra.Command{
-	Use:   "add <type> <name>",
+	Use:   "add <name> [type]",
 	Short: "Add a component to your project",
 	Long: `Add a language guide, framework guide, or workflow to your project.
 
-Types:
-  language   Add a language guide (e.g., rust, kotlin)
-  framework  Add a framework guide (e.g., django, rails)
-  workflow   Add a workflow (e.g., security-audit)
+In v3, type is optional — Samuel infers it from the name when unambiguous.
+Both arg orders are accepted: 'samuel add react' (inferred), 'samuel add react framework'
+(name first, v3 style), and 'samuel add framework react' (type first, v2 style)
+all work identically.
+
+Types (with aliases):
+  language   (lang, l)   Language guides
+  framework  (fw, f)     Framework guides
+  workflow   (wf, w)     Workflow templates
 
 Examples:
-  samuel add language rust
-  samuel add framework django
-  samuel add workflow security-audit`,
-	Args: cobra.ExactArgs(2),
+  samuel add react                     # v3: type inferred (framework)
+  samuel add typescript                # inferred (language)
+  samuel add react framework           # v3: name first
+  samuel add framework react           # v2 form, still works
+  samuel add lang rust                 # short type alias`,
+	Args: cobra.RangeArgs(1, 2),
 	RunE: runAdd,
 }
 
@@ -32,8 +39,10 @@ func init() {
 }
 
 func runAdd(cmd *cobra.Command, args []string) error {
-	componentType := args[0]
-	componentName := args[1]
+	componentType, componentName, err := parseAddRemoveArgs("add", args)
+	if err != nil {
+		return err
+	}
 
 	config, err := core.LoadConfig()
 	if err != nil {

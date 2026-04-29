@@ -1,5 +1,7 @@
 package core
 
+import "fmt"
+
 // DefaultRegistry is the default GitHub repository for Samuel
 const DefaultRegistry = "https://github.com/ar4mirez/samuel"
 
@@ -309,6 +311,79 @@ func FindSkill(name string) *Component {
 		}
 	}
 	return nil
+}
+
+// InferComponentType resolves a component name to its type by searching the
+// three installable categories (Languages, Frameworks, Workflows). Skills are
+// deliberately excluded — the registry mirrors every Language/Framework/
+// Workflow into Skills as `<name>-guide` entries, so including Skills here
+// would cause every component name to "collide" with itself.
+//
+// Returns:
+//   - typ:        canonical singular type ("language", "framework", "workflow")
+//                 when exactly one of the three categories contains the name
+//   - candidates: type names that match when the name appears in multiple
+//                 categories (used to render disambiguation errors)
+//   - err:        nil on unique match; non-nil when not found or ambiguous
+//
+// Used by `samuel add <name>`, `samuel rm <name>`, and `samuel ls <name> --detail`
+// to skip the explicit-type argument when the name is unambiguous.
+//
+// The TestRegistry_NoCrossTypeNameCollisions invariant test in
+// internal/core/registry_invariant_test.go enforces that no name appears in
+// two of the three slices simultaneously, so the ambiguous branch should
+// never fire today. The branch exists so future registry additions that
+// accidentally collide fail loudly with a useful message.
+func InferComponentType(name string) (typ string, candidates []string, err error) {
+	if FindLanguage(name) != nil {
+		candidates = append(candidates, "language")
+	}
+	if FindFramework(name) != nil {
+		candidates = append(candidates, "framework")
+	}
+	if FindWorkflow(name) != nil {
+		candidates = append(candidates, "workflow")
+	}
+
+	switch len(candidates) {
+	case 0:
+		return "", nil, fmt.Errorf("component not found: %q", name)
+	case 1:
+		return candidates[0], candidates, nil
+	default:
+		return "", candidates, fmt.Errorf(
+			"ambiguous: %q exists as %s. Specify the type explicitly.",
+			name, joinTypesForError(candidates),
+		)
+	}
+}
+
+// joinTypesForError formats a candidate list for human-readable error messages:
+//   ["language", "framework"]            -> "language and framework"
+//   ["language", "framework", "workflow"] -> "language, framework, and workflow"
+func joinTypesForError(candidates []string) string {
+	switch len(candidates) {
+	case 0:
+		return ""
+	case 1:
+		return candidates[0]
+	case 2:
+		return candidates[0] + " and " + candidates[1]
+	default:
+		// Oxford comma form: "a, b, and c"
+		out := ""
+		for i, c := range candidates {
+			switch {
+			case i == 0:
+				out = c
+			case i == len(candidates)-1:
+				out += ", and " + c
+			default:
+				out += ", " + c
+			}
+		}
+		return out
+	}
 }
 
 // FindTemplate finds a template by name

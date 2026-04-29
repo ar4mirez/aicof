@@ -2,7 +2,6 @@ package commands
 
 import (
 	"fmt"
-	"sort"
 	"strings"
 
 	"github.com/ar4mirez/samuel/internal/core"
@@ -109,12 +108,10 @@ func runLs(cmd *cobra.Command, args []string) error {
 }
 
 // resolveLsDetail returns the (type, name) tuple for `samuel ls <name> --detail`.
-// If the user passed --type, that wins. Otherwise we infer across the three
-// installable categories (Languages, Frameworks, Workflows). Skills are
-// excluded — `ls --detail` on a skill name has no info-level analog today.
-//
-// PR 4 will move this to core.InferComponentType so that `add` and `rm` reuse
-// the same logic. For PR 2 the inference is inline; behavior is identical.
+// If the user passed --type, that wins. Otherwise the type is inferred via
+// core.InferComponentType (which scans Languages, Frameworks, and Workflows;
+// Skills are excluded by design). The TestRegistry_NoCrossTypeNameCollisions
+// invariant test in core ensures this can never return ambiguous matches today.
 func resolveLsDetail(name, typeFilter string) (string, string, error) {
 	lower := strings.ToLower(name)
 
@@ -129,29 +126,13 @@ func resolveLsDetail(name, typeFilter string) (string, string, error) {
 		return typeFilter, lower, nil
 	}
 
-	var matches []string
-	if core.FindLanguage(lower) != nil {
-		matches = append(matches, "language")
+	typ, _, err := core.InferComponentType(lower)
+	if err != nil {
+		// core's "not found" message reads naturally; ambiguous adds a hint
+		// pointing the user at --type since ls's flag is the disambiguator.
+		return "", "", fmt.Errorf("%w. Try 'samuel ls %s' to search.", err, lower)
 	}
-	if core.FindFramework(lower) != nil {
-		matches = append(matches, "framework")
-	}
-	if core.FindWorkflow(lower) != nil {
-		matches = append(matches, "workflow")
-	}
-
-	switch len(matches) {
-	case 0:
-		return "", "", fmt.Errorf("component not found: %q. Try 'samuel ls %s' to search.", lower, lower)
-	case 1:
-		return matches[0], lower, nil
-	default:
-		sort.Strings(matches)
-		return "", "", fmt.Errorf(
-			"ambiguous: %q exists as %s. Specify --type to disambiguate.",
-			lower, strings.Join(matches, " and "),
-		)
-	}
+	return typ, lower, nil
 }
 
 // pluralizeTypeFilter converts the canonical singular form used by ls/search

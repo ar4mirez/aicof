@@ -339,15 +339,19 @@ func TestRunAdd_CorruptConfig(t *testing.T) {
 }
 
 func TestRunAdd_InvalidType(t *testing.T) {
+	// In v3, neither positional is a recognized type alias and "go" is a
+	// language name (not a type), so the parser cannot identify which arg is
+	// which. The error wording changed from "unknown component type" (v2) to
+	// "could not interpret" — same outcome (rejection), clearer message.
 	config := core.NewConfig("1.0.0")
 	setupConfigTestDir(t, config)
 
 	err := runAdd(nil, []string{"badtype", "go"})
 	if err == nil {
-		t.Fatal("expected error for invalid component type")
+		t.Fatal("expected error for unparseable arg pair")
 	}
-	if !strings.Contains(err.Error(), "unknown component type") {
-		t.Errorf("error = %q, want containing 'unknown component type'", err.Error())
+	if !strings.Contains(err.Error(), "could not interpret") {
+		t.Errorf("error = %q, want containing 'could not interpret'", err.Error())
 	}
 }
 

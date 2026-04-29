@@ -12,22 +12,26 @@ import (
 )
 
 var removeCmd = &cobra.Command{
-	Use:   "remove <type> <name>",
-	Short: "Remove a component from your project",
+	Use:     "remove <name> [type]",
+	Aliases: []string{"rm"},
+	Short:   "Remove a component from your project",
 	Long: `Remove a language guide, framework guide, or workflow from your project.
 
-This removes the file and updates the config. Core files (CLAUDE.md, workflows)
-cannot be removed.
+In v3, type is optional — Samuel infers it from the name when unambiguous.
+Both arg orders are accepted (see 'samuel add --help' for the rules).
 
-Types:
-  language   Remove a language guide
-  framework  Remove a framework guide
-  workflow   Remove a workflow (only individual workflows, not 'all')
+The 'rm' alias is permanent — script-friendly Unix-y shorthand for 'remove'.
+
+This removes the file and updates the config. Core files (CLAUDE.md) cannot
+be removed. Workflow 'all' cannot be bulk-removed; remove individually.
 
 Examples:
-  samuel remove language rust
-  samuel remove framework django`,
-	Args: cobra.ExactArgs(2),
+  samuel rm react                      # v3: type inferred
+  samuel rm typescript                 # inferred (language)
+  samuel rm react framework            # v3: name first
+  samuel remove framework react        # v2 form, still works
+  samuel rm rust --force               # skip confirmation`,
+	Args: cobra.RangeArgs(1, 2),
 	RunE: runRemove,
 }
 
@@ -37,8 +41,10 @@ func init() {
 }
 
 func runRemove(cmd *cobra.Command, args []string) error {
-	componentType := args[0]
-	componentName := args[1]
+	componentType, componentName, err := parseAddRemoveArgs("remove", args)
+	if err != nil {
+		return err
+	}
 	force, _ := cmd.Flags().GetBool("force")
 
 	// Load config
