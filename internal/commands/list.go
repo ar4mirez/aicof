@@ -30,7 +30,7 @@ func runList(cmd *cobra.Command, args []string) error {
 	typeFilter, _ := cmd.Flags().GetString("type")
 
 	if JSONMode(cmd) {
-		return listJSON(showAvailable, typeFilter)
+		return listJSON(cmd, showAvailable, typeFilter)
 	}
 
 	if showAvailable {
@@ -40,7 +40,7 @@ func runList(cmd *cobra.Command, args []string) error {
 	return listInstalled(typeFilter)
 }
 
-func listJSON(showAvailable bool, typeFilter string) error {
+func listJSON(cmd *cobra.Command, showAvailable bool, typeFilter string) error {
 	type componentJSON struct {
 		Name        string `json:"name"`
 		Type        string `json:"type"`
@@ -82,7 +82,7 @@ func listJSON(showAvailable bool, typeFilter string) error {
 		version = config.Version
 	}
 
-	ui.PrintJSON("list", map[string]interface{}{
+	PrintJSONForCmd(cmd, map[string]interface{}{
 		"version":    version,
 		"available":  showAvailable,
 		"components": components,

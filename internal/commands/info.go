@@ -36,7 +36,7 @@ func runInfo(cmd *cobra.Command, args []string) error {
 
 	if componentType == "" {
 		if JSONMode(cmd) {
-			ui.PrintJSONError("info", fmt.Errorf("invalid component type: %s", args[0]))
+			PrintJSONErrorForCmd(cmd, fmt.Errorf("invalid component type: %s", args[0]))
 		} else {
 			ui.Error("Invalid component type: %s", args[0])
 			ui.Info("Valid types: language (lang, l), framework (fw, f), workflow (wf, w)")
@@ -47,7 +47,7 @@ func runInfo(cmd *cobra.Command, args []string) error {
 	component := findComponent(componentType, componentName)
 	if component == nil {
 		if JSONMode(cmd) {
-			ui.PrintJSONError("info", fmt.Errorf("component not found: %s %s", componentType, componentName))
+			PrintJSONErrorForCmd(cmd, fmt.Errorf("component not found: %s %s", componentType, componentName))
 		} else {
 			ui.Error("Component not found: %s %s", componentType, componentName)
 			ui.Info("Use 'samuel search %s' to find available components", componentName)
@@ -94,7 +94,7 @@ func runInfo(cmd *cobra.Command, args []string) error {
 			}
 			data["related"] = relItems
 		}
-		ui.PrintJSON("info", data)
+		PrintJSONForCmd(cmd, data)
 		return nil
 	}
 

@@ -23,11 +23,17 @@ Examples:
   samuel init my-project          # Initialize a new project
   samuel init .                   # Initialize in current directory
   samuel update                   # Update to latest framework version
-  samuel add language rust        # Add Rust language guide
-  samuel list --available         # List all available components
-  samuel doctor                   # Check installation health`,
+  samuel add rust                 # Add a component (type inferred)
+  samuel ls --all                 # List all available components
+  samuel doctor                   # Check installation health
+  samuel run                      # Status of autonomous loop (or 'samuel auto')`,
 	SilenceUsage:  true,
 	SilenceErrors: true,
+	// SuggestionsMinimumDistance enables Cobra's "did you mean?" hint when a
+	// user types an unknown command. Distance 2 is the documented sweet spot —
+	// catches typos like 'samuel buld' -> 'samuel build' without firing on
+	// genuinely different inputs. Cargo and gh use the same default.
+	SuggestionsMinimumDistance: 2,
 }
 
 // Execute runs the root command

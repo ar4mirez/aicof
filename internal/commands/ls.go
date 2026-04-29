@@ -77,7 +77,7 @@ func runLs(cmd *cobra.Command, args []string) error {
 		// listInstalled / listAvailable use the legacy plural form. Translate.
 		listFilter := pluralizeTypeFilter(canonicalType)
 		if JSONMode(cmd) {
-			return listJSON(showAll, listFilter)
+			return listJSON(cmd, showAll, listFilter)
 		}
 		if showAll {
 			return listAvailable(listFilter)

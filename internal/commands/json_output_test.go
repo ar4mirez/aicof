@@ -95,15 +95,18 @@ func TestListJSON(t *testing.T) {
 		defer cleanup()
 
 		output := captureStdout(t, func() {
-			_ = listJSON(true, "")
+			_ = listJSON(listCmd, true, "")
 		})
 
 		resp := parseJSONOutput(t, output)
 		if !resp.Success {
 			t.Error("expected success=true")
 		}
+		if resp.SchemaVersion != 3 {
+			t.Errorf("expected schemaVersion=3, got %d", resp.SchemaVersion)
+		}
 		if resp.Command != "list" {
-			t.Errorf("expected command=list, got %s", resp.Command)
+			t.Errorf("expected command=list (legacy listCmd path), got %s", resp.Command)
 		}
 
 		data := resp.Data.(map[string]interface{})
@@ -129,7 +132,7 @@ func TestListJSON(t *testing.T) {
 		defer cleanup()
 
 		output := captureStdout(t, func() {
-			_ = listJSON(false, "")
+			_ = listJSON(listCmd, false, "")
 		})
 
 		resp := parseJSONOutput(t, output)
@@ -148,7 +151,7 @@ func TestListJSON(t *testing.T) {
 		defer cleanup()
 
 		output := captureStdout(t, func() {
-			_ = listJSON(true, "language")
+			_ = listJSON(listCmd, true, "language")
 		})
 
 		resp := parseJSONOutput(t, output)
@@ -270,8 +273,15 @@ func TestConfigListJSON(t *testing.T) {
 	if !resp.Success {
 		t.Error("expected success=true")
 	}
-	if resp.Command != "config list" {
-		t.Errorf("expected command='config list', got %s", resp.Command)
+	if resp.SchemaVersion != 3 {
+		t.Errorf("expected schemaVersion=3, got %d", resp.SchemaVersion)
+	}
+	// configListCmd is mounted under 'samuel admin config' as of v3, so the
+	// JSON envelope reports the invoked path. The legacy 'samuel config list'
+	// path emits "config list" (see legacyConfigListCmd) and is exercised by
+	// integration tests, not this unit test.
+	if resp.Command != "admin config list" {
+		t.Errorf("expected command='admin config list', got %s", resp.Command)
 	}
 
 	data := resp.Data.(map[string]interface{})
@@ -354,8 +364,15 @@ func TestAutoTaskListJSON(t *testing.T) {
 	if !resp.Success {
 		t.Error("expected success=true")
 	}
-	if resp.Command != "auto task list" {
-		t.Errorf("expected command='auto task list', got %s", resp.Command)
+	if resp.SchemaVersion != 3 {
+		t.Errorf("expected schemaVersion=3, got %d", resp.SchemaVersion)
+	}
+	// autoTaskListCmd is the preserved legacy nested form mounted under the
+	// renamed 'run task' parent. v3 reports the invoked path "run task list".
+	// The new flat verb is autoTasksCmd ('samuel run tasks'), which would
+	// emit "run tasks" instead.
+	if resp.Command != "run task list" {
+		t.Errorf("expected command='run task list', got %s", resp.Command)
 	}
 
 	data := resp.Data.(map[string]interface{})

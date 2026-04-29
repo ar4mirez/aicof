@@ -39,7 +39,7 @@ func runAutoTaskList(cmd *cobra.Command, args []string) error {
 				Priority: t.Priority,
 			})
 		}
-		ui.PrintJSON("auto task list", map[string]interface{}{
+		PrintJSONForCmd(cmd, map[string]interface{}{
 			"total":     prd.Progress.TotalTasks,
 			"completed": prd.Progress.CompletedTasks,
 			"tasks":     tasks,
@@ -136,9 +136,11 @@ func updateTaskStatus(id string, fn func(*core.AutoPRD, string) error, label str
 
 // runAutoTaskJSON outputs a JSON result for task mutation commands.
 // It is called from the individual task command handlers when --json is set.
+// The command field reflects the invoked path (run done / run skip / run reset
+// / auto task complete / auto task skip / auto task reset) — schema version 3.
 func runAutoTaskJSON(cmd *cobra.Command, id, action string) {
 	if JSONMode(cmd) {
-		ui.PrintJSON("auto task "+action, map[string]interface{}{
+		PrintJSONForCmd(cmd, map[string]interface{}{
 			"taskId": id,
 			"action": action,
 		})
@@ -173,7 +175,7 @@ func runAutoTaskAdd(cmd *cobra.Command, args []string) error {
 	}
 
 	if JSONMode(cmd) {
-		ui.PrintJSON("auto task add", map[string]interface{}{
+		PrintJSONForCmd(cmd, map[string]interface{}{
 			"taskId": task.ID,
 			"title":  task.Title,
 			"action": "add",
