@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (v4 foundation, internal)
+
+- **`internal/orchestrator/`** package — foundation for Samuel v4's curated bundle workflow. Defines the `Component` interface (Detect, Install, Check, Uninstall) that future v4 components (gstack, gbrain, samuel-skills) will implement. Lifecycle methods on the orchestrator (`Install`, `Doctor`, `Uninstall`) coordinate components in dependency order with LIFO rollback on failure.
+- **Structured `Error` type** — every orchestrator error carries `Problem`, `Cause`, `Fix`, `DocsURL`, `Recoverable`, `Component`, and `Path` fields so the CLI can render actionable messages instead of bare Go error strings.
+- **flock(2)-based concurrent init lock** — Install and Uninstall serialize across processes via a kernel-managed advisory lock at `~/.claude/.samuel.lock`. No PID-eviction race, auto-released on process death. Lock fd opened with `O_CLOEXEC` so child processes don't inherit it. macOS and Linux only; Windows v4 support is on the v4.x roadmap.
+- **`DryRun` honors no-mutation contract** — `samuel init --dry-run` (when wired to the CLI in a later PR) skips lock acquisition entirely. The orchestrator does not create `~/.claude/` or write a PID file in dry-run mode.
+- **Best-effort `Uninstall`** — a failure in one component does not stop later components from running; all errors are joined and returned. Callers see "most things uninstalled, here are the failures" rather than a half-uninstalled dead end.
+
+This is internal foundation only — no user-visible CLI surface yet. The `samuel init`, `samuel doctor`, and other v4 commands that consume this package land in subsequent PRs (PR2 onward of the v4 plan).
+
 <!-- Add unreleased changes here -->
 
 ## [3.0.0] - 2026-04-29
