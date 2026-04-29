@@ -73,7 +73,7 @@ func runSync(cmd *cobra.Command, args []string) error {
 		for _, e := range result.Errors {
 			errStrs = append(errStrs, e.Error())
 		}
-		ui.PrintJSON("sync", map[string]interface{}{
+		PrintJSONForCmd(cmd, map[string]interface{}{
 			"dryRun":  dryRun,
 			"created": toRel(result.Created),
 			"updated": toRel(result.Updated),

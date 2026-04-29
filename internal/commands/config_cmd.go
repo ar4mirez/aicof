@@ -90,7 +90,7 @@ func runConfigList(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		if os.IsNotExist(err) {
 			if JSONMode(cmd) {
-				ui.PrintJSONError("config list", fmt.Errorf("no Samuel installation found"))
+				PrintJSONErrorForCmd(cmd, fmt.Errorf("no Samuel installation found"))
 			} else {
 				ui.Warn("No Samuel installation found in current directory")
 				ui.Info("Run 'samuel init' to initialize a project")
@@ -101,7 +101,7 @@ func runConfigList(cmd *cobra.Command, args []string) error {
 	}
 
 	if JSONMode(cmd) {
-		ui.PrintJSON("config list", config.GetAllValues())
+		PrintJSONForCmd(cmd, config.GetAllValues())
 		return nil
 	}
 
@@ -136,7 +136,7 @@ func runConfigGet(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		if os.IsNotExist(err) {
 			if JSONMode(cmd) {
-				ui.PrintJSONError("config get", fmt.Errorf("no Samuel installation found"))
+				PrintJSONErrorForCmd(cmd, fmt.Errorf("no Samuel installation found"))
 			} else {
 				ui.Warn("No Samuel installation found in current directory")
 			}
@@ -151,7 +151,7 @@ func runConfigGet(cmd *cobra.Command, args []string) error {
 	}
 
 	if JSONMode(cmd) {
-		ui.PrintJSON("config get", map[string]interface{}{
+		PrintJSONForCmd(cmd, map[string]interface{}{
 			"key":   key,
 			"value": value,
 		})
@@ -210,7 +210,7 @@ func runConfigSet(cmd *cobra.Command, args []string) error {
 	}
 
 	if JSONMode(cmd) {
-		ui.PrintJSON("config set", map[string]interface{}{
+		PrintJSONForCmd(cmd, map[string]interface{}{
 			"key":      key,
 			"oldValue": oldValue,
 			"newValue": value,

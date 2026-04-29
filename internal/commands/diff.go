@@ -61,7 +61,7 @@ func runDiff(cmd *cobra.Command, args []string) error {
 	}
 
 	if JSONMode(cmd) {
-		ui.PrintJSON("diff", map[string]interface{}{
+		PrintJSONForCmd(cmd, map[string]interface{}{
 			"fromVersion": diff.FromVersion,
 			"toVersion":   diff.ToVersion,
 			"added":       diff.Added,

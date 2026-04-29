@@ -7,6 +7,55 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### v3.0.0 progress (in flight)
+
+PR 1-5 of the v3.0.0 lean reshape have landed on `main`. v3.0.0 ships when PR 6 (docs) and PR 7 (release) land. Until then, `main` is on track but unreleased.
+
+#### BREAKING — JSON output schema bumped to v3 (PR 5)
+
+The JSON envelope now includes a `schemaVersion: 3` integer field. The `command` field reflects the *invoked* command path rather than a hardcoded handler label, so `samuel ls --json` reports `"command": "ls"` (not `"search"` or `"info"`), and `samuel admin config get version --json` reports `"command": "admin config get"`.
+
+Legacy commands keep emitting their original strings — `samuel list --json` still reports `"command": "list"` so v2 scripts that pipe to `jq '.command == "list"'` keep working through the v3.0.x shim window.
+
+Migration for JSON consumers:
+
+- Branch on `schemaVersion`: handle `3` for v3 invocations, fall through to legacy for `null`/missing.
+- If you parsed `command` to detect a specific operation, prefer the v3 invocation paths in new scripts.
+
+#### Added — type inference for `add` / `rm` (PR 4)
+
+`samuel add react` and `samuel rm typescript` work without specifying a type — Samuel infers it from the registry. The 2-arg form accepts both v2 (`add framework react`) and v3 (`add react framework`) orders.
+
+#### Added — `rm` permanent alias (PR 4)
+
+`samuel rm <name>` is a permanent alias for `samuel remove <name>`. Unix-y shorthand, never deprecated.
+
+#### Added — `samuel ls` collapses list/search/info (PR 2)
+
+One discovery verb with a flag matrix: `samuel ls`, `samuel ls --all`, `samuel ls react`, `samuel ls react --detail`. Legacy `list`, `search`, `info` keep working as Hidden+Deprecated aliases until v3.1.0.
+
+#### Added — `samuel admin` parent (PR 1)
+
+`config`, `sync`, and `diff` (two-version comparison form) now live under `samuel admin <verb>`. Legacy top-level paths still work as Hidden+Deprecated aliases.
+
+#### Added — `samuel run` (PR 3)
+
+The autonomous Ralph Wiggum loop is now reachable as `samuel run`. `samuel auto` is a permanent alias (not deprecated, never removes). New flat task verbs: `run tasks`, `run done <id>`, `run skip <id>`, `run reset <id>`, `run enqueue <title>` (auto-id). The legacy `samuel auto task <verb>` forms work as Hidden+Deprecated aliases.
+
+Bare `samuel run` (or `samuel auto`) shows status when a loop is initialized; otherwise prints actionable help and exits non-zero. It never silently starts a loop.
+
+#### Added — `--no-deprecation` and `SAMUEL_NO_DEPRECATION` (PR 1)
+
+Either the global flag or the env var silences the one-line deprecation notice that legacy aliases print. CI scripts can opt out without modification.
+
+#### Added — Cobra "did you mean?" suggestions (PR 5)
+
+`samuel adminn` now suggests `admin`. Distance threshold is 2 (matches cargo and gh).
+
+#### Added — registry cross-type collision invariant test (PR 4)
+
+`TestRegistry_NoCrossTypeNameCollisions` enforces that no name appears in two of {Languages, Frameworks, Workflows}. If a future contributor adds a duplicate, type inference would silently regress; the test fails the build instead.
+
 <!-- Add unreleased changes here -->
 
 ## [2.0.0] - 2026-02-12

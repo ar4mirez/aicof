@@ -348,7 +348,7 @@ func runAutoEnqueue(cmd *cobra.Command, args []string) error {
 	}
 
 	if JSONMode(cmd) {
-		ui.PrintJSON("auto enqueue", map[string]interface{}{
+		PrintJSONForCmd(cmd, map[string]interface{}{
 			"taskId": id,
 			"title":  title,
 			"action": "enqueue",
