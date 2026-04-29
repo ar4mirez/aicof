@@ -116,20 +116,25 @@ func acquireFileLock(home string) (release func(), err error) {
 
 // readHolderHint reads the lock file's PID body for diagnostic display.
 // The bytes on disk are user-controlled (a same-uid attacker, or a
-// crashed prior process, could plant arbitrary content), so we validate
-// the body parses as a PID before rendering it. Anything else surfaces
-// as "unknown" rather than letting raw bytes (control chars, ANSI
-// escapes, multi-MB blobs) flow into error output.
+// crashed prior process, could plant arbitrary content), so:
+//   - read at most maxPidBytes via io.LimitReader so a multi-GB plant
+//     cannot force a full allocation on the contention path
+//   - validate the body parses as a positive PID before rendering
+//   - anything else surfaces as "unknown" rather than letting raw bytes
+//     (control chars, ANSI escapes, blobs) flow into error output
 func readHolderHint(lockFile string) string {
 	const maxPidBytes = 32
-	data, err := os.ReadFile(lockFile)
-	if err != nil || len(data) == 0 {
+	f, err := os.Open(lockFile)
+	if err != nil {
 		return "unknown"
 	}
-	if len(data) > maxPidBytes {
-		data = data[:maxPidBytes]
+	defer f.Close()
+	buf := make([]byte, maxPidBytes)
+	n, _ := io.ReadFull(io.LimitReader(f, maxPidBytes), buf)
+	if n == 0 {
+		return "unknown"
 	}
-	pid, err := strconv.Atoi(strings.TrimSpace(string(data)))
+	pid, err := strconv.Atoi(strings.TrimSpace(string(buf[:n])))
 	if err != nil || pid <= 0 {
 		return "unknown"
 	}

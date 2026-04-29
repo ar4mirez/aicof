@@ -615,8 +615,97 @@ func TestShouldSkip_CaseInsensitive(t *testing.T) {
 }
 
 // contains is a substring helper used by tests that only need a "yes/no
-// substring exists" check on freeform error strings. Kept thin to avoid
-// importing strings just for this one assertion shape.
+// substring exists" check on freeform error strings. Shared by
+// orchestrator_test.go and lock_unix_test.go for substring assertions
+// on freeform error strings.
 func contains(haystack, needle string) bool {
 	return strings.Contains(haystack, needle)
+}
+
+func TestInstall_DryRunDoesNotCreateLockFile(t *testing.T) {
+	// DryRun is contractually "no state mutation". Acquiring the
+	// advisory lock creates ~/.claude/.samuel.lock and writes a PID.
+	// Both are observable mutations the user did not authorize.
+	dir := t.TempDir()
+	c := &mockComponent{name: "samuel-skills"}
+	o := New(c).WithHomeDir(dir)
+
+	if _, err := o.Install(context.Background(), InstallOptions{DryRun: true}); err != nil {
+		t.Fatalf("DryRun Install: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(dir, LockPath)); !os.IsNotExist(err) {
+		t.Errorf("DryRun must not create the lock file; stat = %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(dir, ".claude")); !os.IsNotExist(err) {
+		t.Errorf("DryRun must not create ~/.claude/; stat = %v", err)
+	}
+	// Component is still called so it can produce a dry-run report.
+	if got := c.installCalls.Load(); got != 1 {
+		t.Errorf("DryRun should still call component (so it can report what would change); got %d", got)
+	}
+}
+
+func TestUninstall_DryRunDoesNotCreateLockFile(t *testing.T) {
+	dir := t.TempDir()
+	c := &mockComponent{name: "samuel-skills"}
+	o := New(c).WithHomeDir(dir)
+
+	if _, err := o.Uninstall(context.Background(), UninstallOptions{All: true, DryRun: true}); err != nil {
+		t.Fatalf("DryRun Uninstall: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(dir, LockPath)); !os.IsNotExist(err) {
+		t.Errorf("DryRun Uninstall must not create the lock file; stat = %v", err)
+	}
+}
+
+func TestInstall_RollbackFailureProducesNonRecoverableError(t *testing.T) {
+	// Regression test: when install is recoverable but rollback fails
+	// non-recoverably, the joined result must NOT report Recoverable=true
+	// (which would mislead the user into "retry" when manual cleanup is
+	// actually needed).
+	a := &mockComponent{
+		name: "gstack",
+		installFn: func(_ context.Context, _ InstallOptions) (InstallResult, error) {
+			return InstallResult{
+				Mutations: []Mutation{
+					{Path: "a-1", Reverse: func(_ context.Context) error {
+						return errors.New("reverse-cannot-recover")
+					}},
+				},
+			}, nil
+		},
+	}
+	b := &mockComponent{
+		name: "gbrain",
+		installFn: func(_ context.Context, _ InstallOptions) (InstallResult, error) {
+			// Recoverable install error.
+			return InstallResult{}, &Error{
+				Component:   "gbrain",
+				Problem:     "transient network glitch",
+				Recoverable: true,
+			}
+		},
+	}
+	o := newOrchestratorWithTempHome(t, a, b)
+
+	_, err := o.Install(context.Background(), InstallOptions{})
+	if err == nil {
+		t.Fatalf("expected install error")
+	}
+	// Despite the install side being Recoverable=true, the joined error
+	// must report non-recoverable because rollback failed.
+	if IsRecoverable(err) {
+		t.Errorf("IsRecoverable should return false when rollback fails; got true")
+	}
+	// Top-level *Error should describe the joint failure.
+	var oe *Error
+	if !errors.As(err, &oe) {
+		t.Fatalf("expected *Error at top of chain, got %T: %v", err, err)
+	}
+	if oe.Recoverable {
+		t.Errorf("top-level Error.Recoverable should be false when rollback fails")
+	}
+	if !contains(oe.Problem, "rollback") {
+		t.Errorf("top-level Error.Problem should mention rollback; got %q", oe.Problem)
+	}
 }

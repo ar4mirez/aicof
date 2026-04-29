@@ -50,12 +50,20 @@ func (o *Orchestrator) WithHomeDir(home string) *Orchestrator {
 // reverse LIFO order. Rollback runs on a fresh context with rollbackTimeout
 // so install failures triggered by ctx cancellation do not also abort
 // cleanup.
+//
+// DryRun mode skips lock acquisition entirely — the orchestrator's contract
+// is "no state mutation in DryRun," and creating the lock file or writing
+// a PID into it counts as mutation. Components are responsible for honoring
+// opts.DryRun internally; concurrent DryRun runs alongside a real Install
+// are the caller's responsibility to avoid.
 func (o *Orchestrator) Install(ctx context.Context, opts InstallOptions) ([]InstallResult, error) {
-	release, err := o.acquireLock()
-	if err != nil {
-		return nil, err
+	if !opts.DryRun {
+		release, err := o.acquireLock()
+		if err != nil {
+			return nil, err
+		}
+		defer release()
 	}
-	defer release()
 
 	results := make([]InstallResult, 0, len(o.components))
 	applied := make([]Mutation, 0, len(o.components)*4)
@@ -108,12 +116,16 @@ func (o *Orchestrator) Doctor(ctx context.Context) []HealthStatus {
 // returned as a joined error, mirroring rollback semantics. The user's
 // worst case becomes "most things uninstalled, here are the failures"
 // rather than "stuck halfway with no recovery."
+//
+// DryRun mode skips lock acquisition entirely (see Install for rationale).
 func (o *Orchestrator) Uninstall(ctx context.Context, opts UninstallOptions) ([]UninstallResult, error) {
-	release, err := o.acquireLock()
-	if err != nil {
-		return nil, err
+	if !opts.DryRun {
+		release, err := o.acquireLock()
+		if err != nil {
+			return nil, err
+		}
+		defer release()
 	}
-	defer release()
 
 	results := make([]UninstallResult, 0, len(o.components))
 	var errs []error
@@ -137,17 +149,29 @@ func (o *Orchestrator) Uninstall(ctx context.Context, opts UninstallOptions) ([]
 // rollbackOnFailure cleans up after a component's Install returned an
 // error. It owns its own bounded context (so a canceled install ctx
 // cannot abort the cleanup) and joins the install error with any
-// rollback errors using errors.Join — preferred over a double-%w
-// fmt.Errorf because errors.Is/errors.As traversal stays well-defined.
+// rollback errors using errors.Join.
+//
+// When rollback also fails, the joined result is wrapped in a top-level
+// *Error{Recoverable:false} so callers using IsRecoverable get the right
+// answer. Without this wrapper, errors.As would walk the joined tree
+// depth-first and return the install side's Recoverable flag — possibly
+// recoverable — even though the actual state needs manual cleanup.
 func (o *Orchestrator) rollbackOnFailure(component string, installErr error, applied []Mutation) error {
 	rbCtx, cancel := context.WithTimeout(context.Background(), rollbackTimeout)
 	defer cancel()
 	rbErr := o.rollback(rbCtx, applied)
 	wrapped := fmt.Errorf("install %s: %w", component, installErr)
-	if rbErr != nil {
-		return errors.Join(wrapped, fmt.Errorf("rollback: %w", rbErr))
+	if rbErr == nil {
+		return wrapped
 	}
-	return wrapped
+	joined := errors.Join(wrapped, fmt.Errorf("rollback: %w", rbErr))
+	return (&Error{
+		Component:   NameOrchestrator,
+		Problem:     "install failed and rollback also failed",
+		Fix:         "inspect ~/.claude state manually before retrying — automated cleanup did not complete",
+		DocsURL:     "https://samuel.dev/docs/errors/SAM-ROLLBACK-001",
+		Recoverable: false,
+	}).Wrap(joined)
 }
 
 // rollback runs Reverse on each mutation in reverse order. Errors are

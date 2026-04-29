@@ -36,6 +36,44 @@ func holdFlock(t *testing.T, home string) func() {
 	}
 }
 
+func TestReadHolderHint(t *testing.T) {
+	dir := t.TempDir()
+	cases := []struct {
+		name     string
+		body     []byte
+		write    bool
+		expected string
+	}{
+		{"missing", nil, false, "unknown"},
+		{"empty", []byte(""), true, "unknown"},
+		{"whitespace", []byte("   \n\t"), true, "unknown"},
+		{"non-numeric", []byte("not-a-pid"), true, "unknown"},
+		{"zero", []byte("0"), true, "unknown"},
+		{"negative", []byte("-1"), true, "unknown"},
+		{"valid", []byte("12345"), true, "pid=12345"},
+		{"valid-trailing-newline", []byte("12345\n"), true, "pid=12345"},
+		// 64KB blob — must not be fully read (bounded reader caps at 32 bytes)
+		// and must not parse as a PID.
+		{"large-blob", append([]byte("12345"), make([]byte, 65536)...), true, "unknown"},
+		// ANSI escape sequence — must not flow into output.
+		{"ansi-escape", []byte("\x1b[31mevil\x1b[0m"), true, "unknown"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			path := filepath.Join(dir, tc.name+".lock")
+			if tc.write {
+				if err := os.WriteFile(path, tc.body, 0o600); err != nil {
+					t.Fatalf("write: %v", err)
+				}
+			}
+			got := readHolderHint(path)
+			if got != tc.expected {
+				t.Errorf("readHolderHint(%q) = %q, want %q", tc.name, got, tc.expected)
+			}
+		})
+	}
+}
+
 func TestFlock_LiveLockRejectsInstall(t *testing.T) {
 	dir := t.TempDir()
 	releaseTestLock := holdFlock(t, dir)
