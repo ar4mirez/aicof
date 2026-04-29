@@ -21,6 +21,12 @@ type initFlags struct {
 	absTargetDir   string
 	createDir      bool
 	jsonMode       bool
+	// v4 orchestrator escape hatches.
+	noOrchestrator bool
+	skipGstack     bool
+	skipGbrain     bool
+	gbrainBinary   string
+	noSymlink      bool
 }
 
 // initSelections holds the user's component selections.
@@ -40,6 +46,12 @@ func parseInitFlags(cmd *cobra.Command, args []string) (*initFlags, error) {
 	flags.frameworkFlags, _ = cmd.Flags().GetStringSlice("frameworks")
 	flags.jsonMode = JSONMode(cmd)
 	flags.cliProvided = flags.templateName != "" || len(flags.languageFlags) > 0 || len(flags.frameworkFlags) > 0
+
+	flags.noOrchestrator, _ = cmd.Flags().GetBool("no-orchestrator")
+	flags.skipGstack, _ = cmd.Flags().GetBool("skip-gstack")
+	flags.skipGbrain, _ = cmd.Flags().GetBool("skip-gbrain")
+	flags.gbrainBinary, _ = cmd.Flags().GetString("gbrain-binary")
+	flags.noSymlink, _ = cmd.Flags().GetBool("no-symlink")
 
 	targetDir := "."
 	if len(args) > 0 {
