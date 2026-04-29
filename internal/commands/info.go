@@ -12,26 +12,14 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// infoCmd is preserved as a Hidden+Deprecated alias for v3.0.0.
+// Use 'samuel ls <name> --detail [--type <type>]'.
 var infoCmd = &cobra.Command{
-	Use:   "info <type> <name>",
-	Short: "Show detailed information about a component",
-	Long: `Display detailed information about a language, framework, or workflow.
-
-Shows description, file path, size, installation status, and related components.
-Use --preview to see the first few lines of the guide.
-
-Examples:
-  samuel info framework react          # Info about React framework
-  samuel info lang typescript          # Info about TypeScript
-  samuel info wf create-prd            # Info about create-prd workflow
-  samuel info fw nextjs --preview 15   # Show first 15 lines
-
-Types (with aliases):
-  language   (lang, l)   Language guides
-  framework  (fw, f)     Framework guides
-  workflow   (wf, w)     Workflow templates`,
-	Args: cobra.ExactArgs(2),
-	RunE: runInfo,
+	Use:    "info <type> <name>",
+	Short:  "[DEPRECATED] Use 'samuel ls <name> --detail'",
+	Hidden: true,
+	Args:   cobra.ExactArgs(2),
+	RunE:   redirectAndRun("samuel ls <name> --detail [--type <type>]", runInfo),
 }
 
 func init() {

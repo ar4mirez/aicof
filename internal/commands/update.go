@@ -33,14 +33,24 @@ Examples:
 func init() {
 	rootCmd.AddCommand(updateCmd)
 	updateCmd.Flags().Bool("check", false, "Check for updates without applying")
-	updateCmd.Flags().Bool("diff", false, "Show what files will change")
+	updateCmd.Flags().Bool("diff", false, "[DEPRECATED] Use --preview instead")
+	updateCmd.Flags().Bool("preview", false, "Show what files will change without applying (replaces 'samuel diff')")
 	updateCmd.Flags().BoolP("force", "f", false, "Overwrite local modifications")
 	updateCmd.Flags().String("version", "", "Update to specific version")
+	// Hide the legacy --diff flag from help output. It still works for v3.0.x
+	// scripts, but the user-facing flag is --preview.
+	if f := updateCmd.Flags().Lookup("diff"); f != nil {
+		f.Hidden = true
+	}
 }
 
 func runUpdate(cmd *cobra.Command, args []string) error {
 	checkOnly, _ := cmd.Flags().GetBool("check")
+	// --preview is the v3 spelling; --diff is the v2 alias kept Hidden for one
+	// minor release. Either flag triggers the same dry-run output.
+	showPreview, _ := cmd.Flags().GetBool("preview")
 	showDiff, _ := cmd.Flags().GetBool("diff")
+	showDiff = showDiff || showPreview
 	force, _ := cmd.Flags().GetBool("force")
 	targetVersion, _ := cmd.Flags().GetString("version")
 
