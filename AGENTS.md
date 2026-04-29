@@ -88,6 +88,7 @@ samuel/
 │   ├── commands/            # 14 CLI commands (init, update, add, remove, list, doctor, version, search, info, config, diff, skill, auto, sync)
 │   ├── core/                # Business logic (config, registry, extractor, skill, auto)
 │   ├── github/              # GitHub API client (releases, archives)
+│   ├── orchestrator/        # v4 component lifecycle (Component interface, structured Error, flock concurrent init lock) — internal foundation, no CLI surface yet
 │   └── ui/                  # User interface helpers (prompts, spinner, colors)
 ├── template/                # Distributable template files
 │   ├── CLAUDE.md            # Template AI instructions
