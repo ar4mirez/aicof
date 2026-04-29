@@ -23,27 +23,13 @@ type SearchResult struct {
 	Installed   bool
 }
 
+// searchCmd is preserved as a Hidden+Deprecated alias for v3.0.0. Use 'samuel ls <query>'.
 var searchCmd = &cobra.Command{
-	Use:   "search <query>",
-	Short: "Search for components by keyword",
-	Long: `Search for Samuel components across languages, frameworks, workflows, and skills.
-
-Supports fuzzy matching for typos and partial matches. Results are sorted by relevance.
-
-Examples:
-  samuel search react              # Search all component types
-  samuel search --type fw django   # Search only frameworks
-  samuel search py                 # Fuzzy match finds "python"
-  samuel search "spring boot"      # Multi-word search
-  samuel search commit             # Finds commit-message skill
-
-Types (with aliases):
-  language   (lang, l)   Language guides
-  framework  (fw, f)     Framework guides
-  workflow   (wf, w)     Workflow templates
-  skill      (sk, s)     Agent Skills`,
-	Args: cobra.ExactArgs(1),
-	RunE: runSearch,
+	Use:    "search <query>",
+	Short:  "[DEPRECATED] Use 'samuel ls <query>'",
+	Hidden: true,
+	Args:   cobra.ExactArgs(1),
+	RunE:   redirectAndRun("samuel ls <query>", runSearch),
 }
 
 func init() {

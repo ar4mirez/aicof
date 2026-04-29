@@ -9,18 +9,14 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// listCmd is preserved as a Hidden+Deprecated alias for v3.0.0. Use 'samuel ls'.
+// The wrapper prints a one-line redirect (suppressed by SAMUEL_NO_DEPRECATION=1
+// or --no-deprecation) and forwards to the same handler.
 var listCmd = &cobra.Command{
-	Use:   "list",
-	Short: "List installed or available components",
-	Long: `List Samuel components (languages, frameworks, workflows).
-
-By default, shows installed components. Use --available to show all available components.
-
-Examples:
-  samuel list                    # List installed components
-  samuel list --available        # List all available components
-  samuel list --type languages   # Filter by type`,
-	RunE: runList,
+	Use:    "list",
+	Short:  "[DEPRECATED] Use 'samuel ls'",
+	Hidden: true,
+	RunE:   redirectAndRun("samuel ls", runList),
 }
 
 func init() {
