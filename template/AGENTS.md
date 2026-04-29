@@ -140,10 +140,13 @@ NODE_ENV=            # development | production | test
 - Tests >80% (critical) | Conventional commits | No secrets in code
 
 **Autonomous Mode (Ralph Wiggum methodology):**
-- Initialize: `samuel auto init --prd .claude/tasks/NNNN-prd-feature.md`
-- Start loop: `samuel auto start`
-- Check status: `samuel auto status`
-- Manage tasks: `samuel auto task list|complete|skip|reset|add`
+- Initialize: `samuel run init --prd .claude/tasks/NNNN-prd-feature.md`
+- Start loop: `samuel run start`
+- Check status: `samuel run status` (or just `samuel run` when a loop exists)
+- List tasks: `samuel run tasks`
+- Mutate tasks: `samuel run done|skip|reset <id>`
+- Add tasks: `samuel run enqueue "<title>"` (auto-id) or `samuel run task add <id> <title>` (explicit, for CI)
+- Backward compat: `samuel auto` is a permanent alias for `samuel run`
 - Methodology: .claude/skills/auto/SKILL.md
 
 **Emergency Quick Links:**
@@ -323,9 +326,9 @@ For architecture changes, major refactors, new systems:
 **Autonomous Execution (Optional):**
 After task generation, convert to autonomous format for unattended execution:
 
-1. `samuel auto init --prd .claude/tasks/NNNN-prd-feature.md`
+1. `samuel run init --prd .claude/tasks/NNNN-prd-feature.md`
 2. Review generated `prd.json` and `prompt.md`
-3. `samuel auto start`
+3. `samuel run start`
 
 See `.claude/skills/auto/SKILL.md` for the full methodology.
 
