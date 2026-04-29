@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 
 	"github.com/ar4mirez/samuel/internal/core"
+	"github.com/ar4mirez/samuel/internal/orchestrator"
 	"github.com/ar4mirez/samuel/internal/ui"
 	"github.com/spf13/cobra"
 )
@@ -31,6 +32,8 @@ Examples:
 func init() {
 	rootCmd.AddCommand(doctorCmd)
 	doctorCmd.Flags().Bool("fix", false, "Auto-fix issues where possible")
+	doctorCmd.Flags().Bool("verify", false, "Run deeper bundle verification (gstack SHA, gbrain MCP registration, skill resolution)")
+	doctorCmd.Flags().Bool("no-orchestrator", false, "Skip the v4 orchestrator health checks; show only legacy v3 doctor checks")
 }
 
 type checkResult struct {
@@ -42,6 +45,8 @@ type checkResult struct {
 
 func runDoctor(cmd *cobra.Command, args []string) error {
 	autoFix, _ := cmd.Flags().GetBool("fix")
+	noOrchestrator, _ := cmd.Flags().GetBool("no-orchestrator")
+	verify, _ := cmd.Flags().GetBool("verify")
 
 	cwd, err := os.Getwd()
 	if err != nil {
@@ -71,6 +76,17 @@ func runDoctor(cmd *cobra.Command, args []string) error {
 
 	if config != nil {
 		results = append(results, checkLocalModifications(cwd, config)...)
+	}
+
+	// v4 orchestrator health: walk gstack, gbrain, samuel-skills components
+	// and merge their HealthStatus into the existing checkResult stream so
+	// users see one unified health page.
+	var orchStatuses []orchestrator.HealthStatus
+	if !noOrchestrator {
+		orchStatuses = runOrchestratorDoctor(cwd, verify)
+		for _, s := range orchStatuses {
+			results = append(results, healthStatusToCheckResult(s))
+		}
 	}
 
 	if JSONMode(cmd) {

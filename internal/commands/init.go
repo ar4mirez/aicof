@@ -36,6 +36,15 @@ func init() {
 	initCmd.Flags().StringSlice("frameworks", nil, "Frameworks to install (comma-separated)")
 	initCmd.Flags().BoolP("force", "f", false, "Overwrite existing files")
 	initCmd.Flags().Bool("non-interactive", false, "Skip prompts, use defaults")
+
+	// v4 orchestrator escape hatches. When the orchestrator runs (default
+	// for v4), these let users opt out per-component for environments
+	// where the prereq is missing or managed elsewhere.
+	initCmd.Flags().Bool("skip-gstack", false, "Skip gstack composition (gstack already installed elsewhere)")
+	initCmd.Flags().Bool("skip-gbrain", false, "Skip gbrain MCP registration (no gbrain installed; you can wire it later)")
+	initCmd.Flags().String("gbrain-binary", "", "Path to a non-PATH gbrain binary")
+	initCmd.Flags().Bool("no-symlink", false, "Do not create the project's .claude/skills/samuel symlink")
+	initCmd.Flags().Bool("no-orchestrator", false, "Skip the v4 orchestrator entirely; run only legacy v3 init")
 }
 
 func runInit(cmd *cobra.Command, args []string) error {
@@ -63,6 +72,13 @@ func runInit(cmd *cobra.Command, args []string) error {
 	}
 
 	if err := installAndSetup(flags, sel, version, cachePath); err != nil {
+		return err
+	}
+
+	if err := runOrchestratorBundle(cmd, flags); err != nil {
+		// Orchestrator already rendered the structured error. Fail the
+		// command — partial init is worse than a clean abort that the
+		// user can re-run after fixing the prereq.
 		return err
 	}
 
