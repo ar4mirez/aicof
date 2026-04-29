@@ -3,7 +3,7 @@
 > **`samuel run` and walk away.**
 > Ralph Wiggum methodology • Cross-tool (Claude Code, Cursor, Codex, Copilot) • Opinionated guardrails baked in
 
-[![Version](https://img.shields.io/badge/version-3.0.0--pre-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-3.0.0-blue.svg)](CHANGELOG.md)
 [![AGENTS.md](https://img.shields.io/badge/AGENTS.md-compatible-brightgreen.svg)](https://agents.md)
 [![Status](https://img.shields.io/badge/status-production%20ready-brightgreen.svg)](CLAUDE.md)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
@@ -18,9 +18,9 @@ Underneath, Samuel is a versioned framework manager: it installs an opinionated 
 
 ---
 
-## What's New in v3.0.0 (in flight)
+## What's New in v3.0.0
 
-v3.0.0 is the lean reshape. Five of seven PRs have landed on `main`; tag drops when PRs 6 and 7 land.
+v3.0.0 is the lean reshape. Top-level surface compressed from 14 commands to 11. The hot path is `init` → `run` → `update`. v2 scripts keep working through v3.0.x via Hidden+Deprecated wrappers.
 
 - **`samuel run`** — autonomous loop renamed from `samuel auto` (which stays as a permanent alias). Smart bare invocation: status if a loop exists, actionable help if not — never silently starts.
 - **`samuel ls`** — single discovery verb collapsing v2's `list` + `search` + `info`. `samuel ls react --detail` infers the type.
