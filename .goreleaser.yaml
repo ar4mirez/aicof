@@ -125,6 +125,12 @@ brews:
     license: "MIT"
     install: |
       bin.install "samuel"
+
+      # Generate shell completions from the binary itself. The samuel completion
+      # command is auto-registered by Cobra and supports bash/zsh/fish/powershell.
+      # Brew copies these into the right locations so tab completion works
+      # immediately after `brew install samuel` (no extra steps for the user).
+      generate_completions_from_executable(bin/"samuel", "completion")
     test: |
       system "#{bin}/samuel", "version"
 

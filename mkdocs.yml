@@ -146,6 +146,7 @@ nav:
     - Quick Start: getting-started/quick-start.md
     - Installation: getting-started/installation.md
     - Your First Task: getting-started/first-task.md
+    - Migrating from v2: getting-started/migration-v3.md
   - Core System:
     - Overview: core/overview.md
     - CLAUDE.md: core/claude-md.md

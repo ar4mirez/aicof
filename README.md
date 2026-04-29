@@ -1,25 +1,37 @@
-# Samuel - Artificial Intelligence Coding Framework
+# Samuel — the autonomous AI coding loop your CLI needs
 
-> **Build smarter, faster, and more scalable software**
-> Cross-tool compatible • Opinionated guardrails • Tech-stack agnostic • Token-optimized
+> **`samuel run` and walk away.**
+> Ralph Wiggum methodology • Cross-tool (Claude Code, Cursor, Codex, Copilot) • Opinionated guardrails baked in
 
-[![Version](https://img.shields.io/badge/version-2.6.4-blue.svg)](CLAUDE.md)
+[![Version](https://img.shields.io/badge/version-3.0.0--pre-blue.svg)](CHANGELOG.md)
 [![AGENTS.md](https://img.shields.io/badge/AGENTS.md-compatible-brightgreen.svg)](https://agents.md)
 [![Status](https://img.shields.io/badge/status-production%20ready-brightgreen.svg)](CLAUDE.md)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
 ---
 
-## What's New in v2.6.4
+## What is Samuel?
 
-- **JSON Output Mode** - Global `--json` flag on all CLI commands for programmatic consumption by AI agents and CI/CD pipelines
-- **Renamed to Samuel** - Cleaner, memorable name (formerly AICoF). Binary: `samuel`, config: `samuel.yaml`
-- **Autonomous AI Coding Loop** - Ralph Wiggum methodology for unattended task completion (`samuel auto`)
-- **Migrated to `.claude/` directory** - Skills and context now live under `.claude/skills/` instead of `.agent/skills/`
-- **24 Workflows** - Including `auto`, `create-rfd`, `create-skill`, `sync-claude-md`, and more
-- **33 Framework Skills** - Comprehensive framework-specific guidance across 11 language families
-- **21 Language Guides** - All major programming languages covered
-- **Homebrew formula** - Install with `brew install samuel` (was a cask)
+Samuel is a Go CLI that ships an autonomous AI coding loop plus a library of language, framework, and workflow guides that any AI tool can read. The differentiator is `samuel run` — point it at a structured task list, walk away, and let the loop pick tasks, implement them, run tests, and commit. Across multiple fresh context windows. With your guardrails enforced.
+
+Underneath, Samuel is a versioned framework manager: it installs an opinionated CLAUDE.md + skill set into your project, keeps it migrated as the upstream evolves, and ships the same content as AGENTS.md so non-Claude tools work too.
+
+---
+
+## What's New in v3.0.0 (in flight)
+
+v3.0.0 is the lean reshape. Five of seven PRs have landed on `main`; tag drops when PRs 6 and 7 land.
+
+- **`samuel run`** — autonomous loop renamed from `samuel auto` (which stays as a permanent alias). Smart bare invocation: status if a loop exists, actionable help if not — never silently starts.
+- **`samuel ls`** — single discovery verb collapsing v2's `list` + `search` + `info`. `samuel ls react --detail` infers the type.
+- **`samuel add react`** — type inference. The 1-arg form works for any unambiguous component name.
+- **`samuel rm`** — permanent alias for `remove`.
+- **`samuel admin <verb>`** — power-user commands (`config`, `sync`, `diff`) grouped together. `doctor` and `skill` stay top-level.
+- **JSON `schemaVersion: 3`** — every `--json` envelope carries it. The `command` field reflects the invoked path.
+- **"Did you mean?"** — Cobra suggestions for typos (`samuel adminn` → `samuel admin`).
+- **`SAMUEL_NO_DEPRECATION=1`** — env var (and `--no-deprecation` flag) silence the one-line redirect that legacy aliases print.
+
+**v2 scripts keep working** through v3.0.x. See [Migration Guide](docs/getting-started/migration-v3.md) for the v2→v3 mapping.
 
 ---
 
@@ -40,11 +52,21 @@ samuel init my-project
 cd my-project
 
 # Explore available components
-samuel search react           # Find components by keyword
-samuel info framework react   # View component details
-samuel list --available       # List all components
+samuel ls --all              # List everything available
+samuel ls react              # Search "react"
+samuel ls react --detail     # Full info on a component (type inferred)
 
-# Start coding with AI - guardrails apply automatically!
+# Add components (type inferred)
+samuel add typescript        # Adds the TypeScript language guide
+samuel add react             # Adds the React framework guide
+samuel add code-review       # Adds the code-review workflow
+
+# Start an autonomous coding loop
+samuel run init              # Bootstrap the loop (or pass a PRD: 'samuel run init <path>')
+samuel run start             # Begin
+samuel run                   # Bare run = status when a loop exists
+
+# Or start coding with AI yourself — guardrails apply automatically.
 ```
 
 ### Option 2: Manual Copy
@@ -124,76 +146,117 @@ Samuel (Artificial Intelligence Coding Framework) is an **opinionated AI develop
 
 ---
 
-## CLI Commands
+## CLI Commands (v3)
 
-The `samuel` CLI manages framework installation, updates, and component discovery.
+The `samuel` CLI manages framework installation, updates, component discovery, and the autonomous loop.
 
 ### Core Commands
 
 | Command | Description | Example |
 |---------|-------------|---------|
 | `init [project]` | Initialize Samuel in a project | `samuel init my-app` |
-| `update` | Update to latest framework version | `samuel update` |
+| `update [--preview]` | Update framework (or preview changes) | `samuel update --preview` |
 | `doctor` | Check installation health | `samuel doctor` |
 | `version` | Show CLI and framework versions | `samuel version` |
 
-### Component Management
+### Components
 
 | Command | Description | Example |
 |---------|-------------|---------|
-| `add <type> <name>` | Add a component | `samuel add framework react` |
-| `remove <type> <name>` | Remove a component | `samuel remove language rust` |
-| `list [--available]` | List installed/available components | `samuel list --available` |
+| `add <name> [type]` | Add a component (type inferred when unambiguous) | `samuel add react` |
+| `rm <name> [type]` | Remove a component (alias of `remove`) | `samuel rm rust` |
+| `ls [query]` | List, search, or detail (collapses v2 list/search/info) | `samuel ls react --detail` |
 
-**Type aliases**: `language` (lang, l), `framework` (fw, f), `workflow` (wf, w)
+`samuel ls` supports `--all` (everything available), `--type framework`, `--detail` (info-style), `--preview N`, `--no-related`, and `--limit N`. Type aliases (`lang`/`l`, `fw`/`f`, `wf`/`w`) are still accepted.
 
-### Discovery Commands
-
-| Command | Description | Example |
-|---------|-------------|---------|
-| `search <query>` | Search components by keyword | `samuel search api` |
-| `info <type> <name>` | Show component details | `samuel info fw nextjs` |
-| `diff [v1] [v2]` | Compare versions | `samuel diff v1.6.0 v1.7.0` |
-
-### Maintenance
+### Autonomous loop (Ralph Wiggum)
 
 | Command | Description | Example |
 |---------|-------------|---------|
-| `sync` | Sync per-folder CLAUDE.md/AGENTS.md | `samuel sync --dry-run` |
+| `run` (bare) | Status if loop exists, actionable help otherwise | `samuel run` |
+| `run init [prd]` | Bootstrap the loop | `samuel run init .claude/tasks/0001-prd.md` |
+| `run start` | Begin or resume | `samuel run start` |
+| `run pilot` | Zero-setup discover-and-implement | `samuel run pilot` |
+| `run status` | Show progress | `samuel run status` |
+| `run tasks` | List tasks | `samuel run tasks` |
+| `run done <id>` | Mark complete | `samuel run done 1.1` |
+| `run skip <id>` | Mark skipped | `samuel run skip 1.1` |
+| `run reset <id>` | Reset to pending | `samuel run reset 1.1` |
+| `run enqueue <title>` | Add task with auto-id | `samuel run enqueue "Add metrics"` |
+| `run task add <id> <title>` | Add task with explicit id (CI) | `samuel run task add 5.0 "Title"` |
 
-### Configuration
+`samuel auto` is a permanent alias for `samuel run` — every form above works with either name forever.
+
+### Power-user (admin)
 
 | Command | Description | Example |
 |---------|-------------|---------|
-| `config list` | Show all config values | `samuel config list` |
-| `config get <key>` | Get a config value | `samuel config get version` |
-| `config set <key> <value>` | Set a config value | `samuel config set registry https://...` |
+| `admin config <key>` | Get a config value | `samuel admin config get version` |
+| `admin config set <key> <value>` | Set a config value | `samuel admin config set registry https://...` |
+| `admin sync` | Sync per-folder CLAUDE.md/AGENTS.md | `samuel admin sync --dry-run` |
+| `admin diff [v1] [v2]` | Compare two specific versions | `samuel admin diff v2.5.0 v2.6.0` |
 
-**Valid keys**: `version`, `registry`, `installed.languages`, `installed.frameworks`, `installed.workflows`
+**Valid config keys**: `version`, `registry`, `installed.languages`, `installed.frameworks`, `installed.workflows`
 
-### Command Examples
+### Skills (authoring)
+
+| Command | Description | Example |
+|---------|-------------|---------|
+| `skill list` | List installed skills | `samuel skill list` |
+| `skill info <name>` | Show skill detail | `samuel skill info commit-message` |
+| `skill validate [name]` | Validate skill schema | `samuel skill validate` |
+| `skill create <name>` | Scaffold a new skill | `samuel skill create my-skill` |
+
+### Examples
 
 ```bash
 # Initialize and customize
 samuel init my-project
-samuel add lang typescript
-samuel add fw react nextjs
-samuel add wf code-review security-audit
+samuel add typescript           # Type inferred (language)
+samuel add react                # Type inferred (framework)
+samuel add code-review          # Type inferred (workflow)
 
 # Discover components
-samuel search python           # Fuzzy search across all types
-samuel search --type fw api    # Search only frameworks
-samuel info lang go --preview 20  # Preview first 20 lines
+samuel ls react                 # Search "react"
+samuel ls react --detail        # Full info, type auto-detected
+samuel ls --type framework      # All installed frameworks
+samuel ls --all                 # Everything available
 
 # Manage updates
-samuel diff                    # Compare installed vs latest
-samuel diff v1.6.0 v1.7.0      # Compare specific versions
-samuel update                  # Apply updates
+samuel update --preview         # Compare installed vs latest
+samuel admin diff v2.5.0 v2.6.0 # Compare two specific versions
+samuel update                   # Apply updates
+
+# Run the autonomous loop
+samuel run init                 # Bootstrap with the convention defaults
+samuel run start                # Begin
+samuel run                      # Bare = status check
+samuel run done 1.1             # Mark task complete
+samuel run enqueue "Add tests"  # Add a task (auto-id)
 
 # Troubleshoot
-samuel doctor                  # Check installation health
-samuel config list             # View current configuration
+samuel doctor                   # Check installation health
+samuel admin config get version # View configuration
 ```
+
+### v2 commands
+
+Every v2 command keeps working through the v3.0.x window. Aliases print a one-line redirect on stderr; suppress with `SAMUEL_NO_DEPRECATION=1` or `--no-deprecation`. Aliases remove in v3.1.0. See the [Migration Guide](docs/getting-started/migration-v3.md) for the full v2→v3 mapping.
+
+### JSON output
+
+All commands accept `--json` for programmatic consumption. The envelope reports `schemaVersion: 3` and the `command` field reflects the invoked path:
+
+```json
+{
+  "schemaVersion": 3,
+  "command": "ls",
+  "success": true,
+  "data": { ... }
+}
+```
+
+Pin consumers to `schemaVersion` for forward compatibility.
 
 ---
 
