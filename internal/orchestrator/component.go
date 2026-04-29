@@ -22,6 +22,10 @@ const (
 	NameGstack       = "gstack"
 	NameGbrain       = "gbrain"
 	NameSamuelSkills = "samuel-skills"
+	// NameOrchestrator labels errors that originate from the orchestrator
+	// itself (lock acquisition, home-dir resolution) rather than from a
+	// specific Component implementation.
+	NameOrchestrator = "orchestrator"
 )
 
 // Component is the contract every orchestrated piece implements.

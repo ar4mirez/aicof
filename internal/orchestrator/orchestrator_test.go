@@ -409,7 +409,13 @@ func TestUninstall_BestEffort_ContinuesOnError(t *testing.T) {
 	}
 	// All three results present in reverse order (samuel-skills, gbrain, gstack).
 	if len(results) != 3 {
-		t.Errorf("expected 3 results, got %d", len(results))
+		t.Fatalf("expected 3 results, got %d", len(results))
+	}
+	wantOrder := []string{"samuel-skills", "gbrain", "gstack"}
+	for i, want := range wantOrder {
+		if results[i].Component != want {
+			t.Errorf("results[%d].Component = %q, want %q (best-effort uninstall must walk components in reverse-of-install order)", i, results[i].Component, want)
+		}
 	}
 }
 
@@ -590,10 +596,13 @@ func TestShouldSkip_CaseInsensitive(t *testing.T) {
 		opts     InstallOptions
 		expected bool
 	}{
-		{"exact", NameGstack, InstallOptions{SkipGstack: true}, true},
-		{"upper", "GSTACK", InstallOptions{SkipGstack: true}, true},
-		{"mixed", "GStack", InstallOptions{SkipGstack: true}, true},
-		{"unrelated", "warp", InstallOptions{SkipGstack: true}, false},
+		{"gstack-exact", NameGstack, InstallOptions{SkipGstack: true}, true},
+		{"gstack-upper", "GSTACK", InstallOptions{SkipGstack: true}, true},
+		{"gstack-mixed", "GStack", InstallOptions{SkipGstack: true}, true},
+		{"gbrain-exact", NameGbrain, InstallOptions{SkipGbrain: true}, true},
+		{"gbrain-upper", "GBRAIN", InstallOptions{SkipGbrain: true}, true},
+		{"gbrain-mixed", "GBrain", InstallOptions{SkipGbrain: true}, true},
+		{"unrelated", "warp", InstallOptions{SkipGstack: true, SkipGbrain: true}, false},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

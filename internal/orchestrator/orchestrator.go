@@ -75,13 +75,7 @@ func (o *Orchestrator) Install(ctx context.Context, opts InstallOptions) ([]Inst
 			// stage atomically, but defense-in-depth: don't trust them.
 			applied = append(applied, res.Mutations...)
 			results = append(results, res)
-			rbCtx, cancel := context.WithTimeout(context.Background(), rollbackTimeout)
-			defer cancel()
-			rbErr := o.rollback(rbCtx, applied)
-			if rbErr != nil {
-				return results, fmt.Errorf("install %s: %w; rollback: %w", c.Name(), ierr, rbErr)
-			}
-			return results, fmt.Errorf("install %s: %w", c.Name(), ierr)
+			return results, o.rollbackOnFailure(c.Name(), ierr, applied)
 		}
 		results = append(results, res)
 		applied = append(applied, res.Mutations...)
@@ -140,6 +134,22 @@ func (o *Orchestrator) Uninstall(ctx context.Context, opts UninstallOptions) ([]
 	return results, nil
 }
 
+// rollbackOnFailure cleans up after a component's Install returned an
+// error. It owns its own bounded context (so a canceled install ctx
+// cannot abort the cleanup) and joins the install error with any
+// rollback errors using errors.Join — preferred over a double-%w
+// fmt.Errorf because errors.Is/errors.As traversal stays well-defined.
+func (o *Orchestrator) rollbackOnFailure(component string, installErr error, applied []Mutation) error {
+	rbCtx, cancel := context.WithTimeout(context.Background(), rollbackTimeout)
+	defer cancel()
+	rbErr := o.rollback(rbCtx, applied)
+	wrapped := fmt.Errorf("install %s: %w", component, installErr)
+	if rbErr != nil {
+		return errors.Join(wrapped, fmt.Errorf("rollback: %w", rbErr))
+	}
+	return wrapped
+}
+
 // rollback runs Reverse on each mutation in reverse order. Errors are
 // collected and joined; rollback continues even on partial failure
 // (best-effort cleanup — leaving the system in a worse state than we
@@ -177,7 +187,7 @@ func (o *Orchestrator) resolveHome() (string, error) {
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return "", &Error{
-			Component:   "orchestrator",
+			Component:   NameOrchestrator,
 			Problem:     "cannot determine home directory",
 			Cause:       err.Error(),
 			Fix:         "set HOME environment variable",

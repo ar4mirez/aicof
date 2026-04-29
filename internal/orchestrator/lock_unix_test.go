@@ -102,6 +102,89 @@ func TestFlock_ReleasedThenAcquired(t *testing.T) {
 	}
 }
 
+func TestFlock_MkdirFailure_ReturnsStructuredError(t *testing.T) {
+	// MkdirAll fails when a non-directory exists at the parent path.
+	// Place a regular file at <home>/.claude so MkdirAll cannot create
+	// the lock directory; acquireFileLock must return a structured
+	// *Error with Recoverable=true.
+	dir := t.TempDir()
+	claudePath := filepath.Join(dir, ".claude")
+	if err := os.WriteFile(claudePath, []byte("not a dir"), 0o600); err != nil {
+		t.Fatalf("seed file: %v", err)
+	}
+
+	c := &mockComponent{name: "samuel-skills"}
+	o := New(c).WithHomeDir(dir)
+
+	_, err := o.Install(context.Background(), InstallOptions{})
+	if err == nil {
+		t.Fatalf("expected mkdir failure error, got nil")
+	}
+	var oe *Error
+	if !errors.As(err, &oe) {
+		t.Fatalf("expected *Error, got %T: %v", err, err)
+	}
+	if !contains(oe.Problem, "lock directory") {
+		t.Errorf("expected mkdir error Problem to mention lock directory, got %q", oe.Problem)
+	}
+	if !oe.Recoverable {
+		t.Errorf("mkdir error should be Recoverable")
+	}
+	if got := c.installCalls.Load(); got != 0 {
+		t.Errorf("Install should not call component when lock acquisition fails; got %d", got)
+	}
+}
+
+func TestResolveHome_UsesUserHomeDirWhenUnset(t *testing.T) {
+	// resolveHome falls back to os.UserHomeDir() when WithHomeDir is not
+	// called. Point HOME at a writable temp dir so the success branch
+	// of os.UserHomeDir() is exercised.
+	dir := t.TempDir()
+	t.Setenv("HOME", dir)
+
+	c := &mockComponent{name: "samuel-skills"}
+	o := New(c) // No WithHomeDir → exercises UserHomeDir success path.
+
+	if _, err := o.Install(context.Background(), InstallOptions{}); err != nil {
+		t.Fatalf("Install with HOME-derived home dir should succeed; got %v", err)
+	}
+}
+
+func TestResolveHome_FallsBackToUserHomeDir(t *testing.T) {
+	// When WithHomeDir is not called, resolveHome falls back to
+	// os.UserHomeDir(). Force the failure path by clearing HOME so
+	// UserHomeDir returns an error on Unix.
+	origHome, hadHome := os.LookupEnv("HOME")
+	t.Cleanup(func() {
+		if hadHome {
+			_ = os.Setenv("HOME", origHome)
+		} else {
+			_ = os.Unsetenv("HOME")
+		}
+	})
+	if err := os.Unsetenv("HOME"); err != nil {
+		t.Fatalf("unset HOME: %v", err)
+	}
+
+	c := &mockComponent{name: "samuel-skills"}
+	o := New(c) // No WithHomeDir → exercises resolveHome fallback.
+
+	_, err := o.Install(context.Background(), InstallOptions{})
+	if err == nil {
+		// Some platforms still resolve HOME from getpwuid even when the
+		// env var is unset. In that case the install proceeds; just
+		// verify no panic occurred. Skip the rest of the assertions.
+		t.Skip("UserHomeDir resolved without HOME env (getpwuid fallback); resolveHome error path not reachable in this env")
+	}
+	var oe *Error
+	if !errors.As(err, &oe) {
+		t.Fatalf("expected *Error from resolveHome, got %T: %v", err, err)
+	}
+	if !contains(oe.Problem, "home directory") {
+		t.Errorf("expected resolveHome error Problem to mention home directory, got %q", oe.Problem)
+	}
+}
+
 func TestFlock_ConcurrentInstallsSerialize(t *testing.T) {
 	// Two goroutines calling Install on different Orchestrator instances
 	// pointing at the same home dir must serialize via flock. Unlike the
