@@ -25,22 +25,15 @@ type VersionDiff struct {
 	Unchanged   int
 }
 
+// diffCmd is preserved as a Hidden+Deprecated alias for v3.0.0.
+// Bare 'samuel diff' moved to 'samuel update --preview'.
+// 'samuel diff v1 v2' moved to 'samuel admin diff v1 v2'.
 var diffCmd = &cobra.Command{
-	Use:   "diff [version1] [version2]",
-	Short: "Compare versions to see what changed",
-	Long: `Compare Samuel versions to see what files have been added, removed, or modified.
-
-Without arguments, compares installed files with the latest available version.
-With two version arguments, compares those specific versions.
-
-Examples:
-  samuel diff                    # Compare installed vs latest
-  samuel diff --installed        # Same as above (explicit)
-  samuel diff v1.6.0 v1.7.0      # Compare two specific versions
-
-Note: This command downloads versions to cache if not already present.`,
-	Args: cobra.MaximumNArgs(2),
-	RunE: runDiff,
+	Use:    "diff [version1] [version2]",
+	Short:  "[DEPRECATED] Use 'samuel update --preview' or 'samuel admin diff v1 v2'",
+	Hidden: true,
+	Args:   cobra.MaximumNArgs(2),
+	RunE:   redirectAndRun("samuel update --preview (bare) or samuel admin diff v1 v2 (two-arg)", runDiff),
 }
 
 func init() {
