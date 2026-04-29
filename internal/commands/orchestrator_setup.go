@@ -124,18 +124,3 @@ func renderInstallResults(results []orchestrator.InstallResult) {
 	}
 }
 
-// renderHealthStatuses prints orchestrator HealthStatus values in the
-// same shape as the v3 doctor checkResult lines, so users see one
-// uniform health page mixing both layers.
-func renderHealthStatuses(statuses []orchestrator.HealthStatus) {
-	for _, s := range statuses {
-		if s.OK {
-			ui.SuccessItem(0, "%s: %s", s.Component, s.Message)
-		} else {
-			ui.ErrorItem(0, "%s: %s", s.Component, s.Message)
-			if s.FixHint != "" {
-				ui.ListItem(2, "Fix: %s", s.FixHint)
-			}
-		}
-	}
-}
