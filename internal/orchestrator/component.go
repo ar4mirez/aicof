@@ -15,6 +15,15 @@ import (
 	"io"
 )
 
+// Component name constants. Use these instead of string literals when
+// constructing components or routing options — typos in the literal
+// cause silent skip-flag misroutes (verified by reviewer feedback).
+const (
+	NameGstack       = "gstack"
+	NameGbrain       = "gbrain"
+	NameSamuelSkills = "samuel-skills"
+)
+
 // Component is the contract every orchestrated piece implements.
 type Component interface {
 	// Name returns the stable identifier used in logs, errors, and the

@@ -4,24 +4,29 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"os"
-	"path/filepath"
-	"strconv"
-	"sync"
-	"syscall"
+	"strings"
+	"time"
 )
 
+// rollbackTimeout is the deadline applied to a fresh rollback context.
+// Rollback runs on a separate context so install failures triggered by
+// ctx cancellation do not also abort cleanup (multi-voice review finding).
+const rollbackTimeout = 30 * time.Second
+
 // LockPath is the path to the advisory lock file relative to the user's
-// home directory. The orchestrator holds this file open while
-// Install/Uninstall runs to serialize concurrent Samuel invocations.
+// home directory. The file is opened and held under flock(2) for the
+// duration of Install/Uninstall — the kernel auto-releases the lock on
+// process death, so there is no PID-eviction race. The file persists
+// across runs; its body is informational (PID of the holder).
 const LockPath = ".claude/.samuel.lock"
 
 // Orchestrator coordinates the lifecycle of a set of Components.
+// Concurrent invocations (in-process or cross-process) are serialized
+// by flock(2) on LockPath — no in-process mutex is needed.
 type Orchestrator struct {
 	components []Component
 	homeDir    string // root for the lock file; defaults to $HOME
-	mu         sync.Mutex
 }
 
 // New constructs an Orchestrator with the given components, in the order
@@ -40,18 +45,20 @@ func (o *Orchestrator) WithHomeDir(home string) *Orchestrator {
 }
 
 // Install runs each Component.Install in order, recording mutations as it
-// goes. On any component failure, all already-applied mutations are rolled
-// back in reverse LIFO order. The rollback error (if any) is joined to the
-// install error so callers can see both.
+// goes. On any component failure, all already-applied mutations PLUS any
+// partial mutations the failing component reported are rolled back in
+// reverse LIFO order. Rollback runs on a fresh context with rollbackTimeout
+// so install failures triggered by ctx cancellation do not also abort
+// cleanup.
 func (o *Orchestrator) Install(ctx context.Context, opts InstallOptions) ([]InstallResult, error) {
-	release, err := o.acquireLock(ctx)
+	release, err := o.acquireLock()
 	if err != nil {
 		return nil, err
 	}
 	defer release()
 
 	results := make([]InstallResult, 0, len(o.components))
-	var applied []Mutation
+	applied := make([]Mutation, 0, len(o.components)*4)
 
 	for _, c := range o.components {
 		if shouldSkip(c, opts) {
@@ -63,7 +70,14 @@ func (o *Orchestrator) Install(ctx context.Context, opts InstallOptions) ([]Inst
 			res.Component = c.Name()
 		}
 		if ierr != nil {
-			rbErr := o.rollback(ctx, applied)
+			// Include the failing component's partial mutations in the
+			// rollback queue. Components are required by contract to
+			// stage atomically, but defense-in-depth: don't trust them.
+			applied = append(applied, res.Mutations...)
+			results = append(results, res)
+			rbCtx, cancel := context.WithTimeout(context.Background(), rollbackTimeout)
+			defer cancel()
+			rbErr := o.rollback(rbCtx, applied)
 			if rbErr != nil {
 				return results, fmt.Errorf("install %s: %w; rollback: %w", c.Name(), ierr, rbErr)
 			}
@@ -94,24 +108,34 @@ func (o *Orchestrator) Doctor(ctx context.Context) []HealthStatus {
 // This unwinds dependencies in the correct order: samuel-skills first
 // (project-level cleanup), gbrain second (MCP unregister), gstack last
 // (the user owns gstack; we only uninstall it if they explicitly asked).
+//
+// Uninstall is BEST-EFFORT: a failure in one component does not stop
+// later components from running. All component errors are collected and
+// returned as a joined error, mirroring rollback semantics. The user's
+// worst case becomes "most things uninstalled, here are the failures"
+// rather than "stuck halfway with no recovery."
 func (o *Orchestrator) Uninstall(ctx context.Context, opts UninstallOptions) ([]UninstallResult, error) {
-	release, err := o.acquireLock(ctx)
+	release, err := o.acquireLock()
 	if err != nil {
 		return nil, err
 	}
 	defer release()
 
 	results := make([]UninstallResult, 0, len(o.components))
+	var errs []error
 	for i := len(o.components) - 1; i >= 0; i-- {
 		c := o.components[i]
 		res, uerr := c.Uninstall(ctx, opts)
 		if res.Component == "" {
 			res.Component = c.Name()
 		}
-		if uerr != nil {
-			return results, fmt.Errorf("uninstall %s: %w", c.Name(), uerr)
-		}
 		results = append(results, res)
+		if uerr != nil {
+			errs = append(errs, fmt.Errorf("uninstall %s: %w", c.Name(), uerr))
+		}
+	}
+	if len(errs) > 0 {
+		return results, errors.Join(errs...)
 	}
 	return results, nil
 }
@@ -134,61 +158,16 @@ func (o *Orchestrator) rollback(ctx context.Context, muts []Mutation) error {
 	return errors.Join(errs...)
 }
 
-// acquireLock writes the current PID into an advisory lock file using
-// O_EXCL atomic creation. If the lock exists but the holding PID is dead
-// (process crashed mid-install), the stale lock is evicted and the call
-// retries once. Returns a release function that closes and removes the
-// lock; callers MUST defer release.
-func (o *Orchestrator) acquireLock(_ context.Context) (func(), error) {
-	o.mu.Lock()
+// acquireLock takes the orchestrator's advisory lock. Cross-process and
+// in-process exclusion is provided by flock(2) on a persistent lock file
+// (see lock_unix.go). The returned release function closes the file
+// descriptor, which the kernel uses to release the flock.
+func (o *Orchestrator) acquireLock() (func(), error) {
 	home, err := o.resolveHome()
 	if err != nil {
-		o.mu.Unlock()
 		return nil, err
 	}
-	lockFile := filepath.Join(home, LockPath)
-	if mkErr := os.MkdirAll(filepath.Dir(lockFile), 0o700); mkErr != nil {
-		o.mu.Unlock()
-		return nil, fmt.Errorf("create lock dir: %w", mkErr)
-	}
-
-	f, openErr := o.tryOpenLock(lockFile)
-	if openErr != nil {
-		// Possible stale lock — read PID, check liveness, evict if dead.
-		if data, readErr := os.ReadFile(lockFile); readErr == nil {
-			if pid, perr := strconv.Atoi(string(data)); perr == nil && !pidAlive(pid) {
-				_ = os.Remove(lockFile)
-				f, openErr = o.tryOpenLock(lockFile)
-			}
-		}
-	}
-	if openErr != nil {
-		o.mu.Unlock()
-		return nil, &Error{
-			Component:   "orchestrator",
-			Problem:     "another samuel process is running",
-			Cause:       openErr.Error(),
-			Fix:         "wait for the other process to finish, or remove " + lockFile + " if no samuel process is actually running",
-			DocsURL:     "https://samuel.dev/docs/errors/SAM-LOCK-001",
-			Recoverable: true,
-			Path:        lockFile,
-		}
-	}
-
-	pid := strconv.Itoa(os.Getpid())
-	if _, werr := io.WriteString(f, pid); werr != nil {
-		_ = f.Close()
-		_ = os.Remove(lockFile)
-		o.mu.Unlock()
-		return nil, fmt.Errorf("write lock pid: %w", werr)
-	}
-
-	release := func() {
-		_ = f.Close()
-		_ = os.Remove(lockFile)
-		o.mu.Unlock()
-	}
-	return release, nil
+	return acquireFileLock(home)
 }
 
 func (o *Orchestrator) resolveHome() (string, error) {
@@ -208,31 +187,15 @@ func (o *Orchestrator) resolveHome() (string, error) {
 	return home, nil
 }
 
-func (o *Orchestrator) tryOpenLock(path string) (*os.File, error) {
-	return os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
-}
-
-// pidAlive checks whether a process with the given PID exists. On Unix,
-// signal 0 is the canonical "is this process alive" probe — it does not
-// deliver a signal, just verifies the process can receive one.
-func pidAlive(pid int) bool {
-	if pid <= 0 {
-		return false
-	}
-	p, err := os.FindProcess(pid)
-	if err != nil {
-		return false
-	}
-	return p.Signal(syscall.Signal(0)) == nil
-}
-
 // shouldSkip reports whether the orchestrator should skip a component
-// based on InstallOptions. The component name is the routing key.
+// based on InstallOptions. The component name (case-insensitive) is the
+// routing key — case-folding hardens against typos in component
+// implementations (multi-voice review finding).
 func shouldSkip(c Component, opts InstallOptions) bool {
-	switch c.Name() {
-	case "gstack":
+	switch strings.ToLower(c.Name()) {
+	case NameGstack:
 		return opts.SkipGstack
-	case "gbrain":
+	case NameGbrain:
 		return opts.SkipGbrain
 	}
 	return false

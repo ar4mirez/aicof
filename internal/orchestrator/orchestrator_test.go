@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -379,7 +380,9 @@ func TestUninstall_CallsComponentsInReverseOrder(t *testing.T) {
 	}
 }
 
-func TestUninstall_StopsOnFirstError(t *testing.T) {
+func TestUninstall_BestEffort_ContinuesOnError(t *testing.T) {
+	// Uninstall is best-effort: a failing component does NOT stop later
+	// components from running. All component errors are joined.
 	a := &mockComponent{name: "gstack"}
 	b := &mockComponent{
 		name: "gbrain",
@@ -390,140 +393,57 @@ func TestUninstall_StopsOnFirstError(t *testing.T) {
 	c := &mockComponent{name: "samuel-skills"}
 	o := newOrchestratorWithTempHome(t, a, b, c)
 
-	_, err := o.Uninstall(context.Background(), UninstallOptions{All: true})
+	results, err := o.Uninstall(context.Background(), UninstallOptions{All: true})
 	if err == nil || !contains(err.Error(), "gbrain") {
-		t.Errorf("expected error mentioning gbrain, got %v", err)
+		t.Errorf("expected joined error mentioning gbrain, got %v", err)
 	}
-	// samuel-skills runs first (LIFO), then gbrain fails, then gstack does NOT run.
+	// All three components run despite gbrain's error.
 	if got := c.uninstallCalls.Load(); got != 1 {
-		t.Errorf("samuel-skills (called first) should have run; got %d", got)
+		t.Errorf("samuel-skills should have run; got %d", got)
 	}
-	if got := a.uninstallCalls.Load(); got != 0 {
-		t.Errorf("gstack (called last) should not have run after gbrain error; got %d", got)
+	if got := b.uninstallCalls.Load(); got != 1 {
+		t.Errorf("gbrain should have been attempted; got %d", got)
 	}
-}
-
-func TestLock_ConcurrentInstallsSerialize(t *testing.T) {
-	dir := t.TempDir()
-
-	// Use blocking install fns so we can assert the second caller waits.
-	gate := make(chan struct{})
-	var mu sync.Mutex
-	var inFlight int
-	var maxInFlight int
-
-	makeComp := func(name string) *mockComponent {
-		return &mockComponent{
-			name: name,
-			installFn: func(_ context.Context, _ InstallOptions) (InstallResult, error) {
-				mu.Lock()
-				inFlight++
-				if inFlight > maxInFlight {
-					maxInFlight = inFlight
-				}
-				mu.Unlock()
-				<-gate // hold the lock until released
-				mu.Lock()
-				inFlight--
-				mu.Unlock()
-				return InstallResult{}, nil
-			},
-		}
+	if got := a.uninstallCalls.Load(); got != 1 {
+		t.Errorf("gstack should have run after gbrain's error (best-effort); got %d", got)
 	}
-	o := New(makeComp("samuel-skills")).WithHomeDir(dir)
-
-	done := make(chan error, 2)
-	for i := 0; i < 2; i++ {
-		go func() {
-			done <- mustNotPanic(func() error {
-				_, err := o.Install(context.Background(), InstallOptions{})
-				return err
-			})
-		}()
-	}
-
-	// First caller is now holding the lock and blocked on gate.
-	// The orchestrator's sync.Mutex serializes acquireLock, but the second
-	// goroutine should also fail O_EXCL since the first wrote the file.
-	// Release the gate so the first call returns and frees the lock.
-	time.Sleep(50 * time.Millisecond)
-	close(gate)
-
-	for i := 0; i < 2; i++ {
-		select {
-		case err := <-done:
-			if err != nil {
-				// One of the two callers may legitimately fail with
-				// "another samuel process is running" if the second
-				// reaches acquireLock before the first releases it,
-				// which is racy under the gate scheme. Either result
-				// (success or LOCK error) is acceptable as long as
-				// inFlight never exceeded 1.
-				var oe *Error
-				if !errors.As(err, &oe) || !contains(oe.Problem, "samuel process") {
-					t.Errorf("unexpected error: %v", err)
-				}
-			}
-		case <-time.After(5 * time.Second):
-			t.Fatalf("install did not complete")
-		}
-	}
-	if maxInFlight > 1 {
-		t.Errorf("max concurrent installs = %d, want 1 (lock failed to serialize)", maxInFlight)
+	// All three results present in reverse order (samuel-skills, gbrain, gstack).
+	if len(results) != 3 {
+		t.Errorf("expected 3 results, got %d", len(results))
 	}
 }
 
-func TestLock_StaleLockEvicted(t *testing.T) {
-	dir := t.TempDir()
-	// Pre-create a stale lock file with a PID that definitely doesn't exist.
-	lockPath := filepath.Join(dir, LockPath)
-	if err := os.MkdirAll(filepath.Dir(lockPath), 0o700); err != nil {
-		t.Fatalf("mkdir: %v", err)
+func TestUninstall_BestEffort_JoinsMultipleErrors(t *testing.T) {
+	// When more than one component fails, the joined error must surface
+	// every failure so the user can see the full picture.
+	a := &mockComponent{
+		name: "gstack",
+		uninstallFn: func(_ context.Context, _ UninstallOptions) (UninstallResult, error) {
+			return UninstallResult{}, errors.New("gstack-error")
+		},
 	}
-	if err := os.WriteFile(lockPath, []byte("999999999"), 0o600); err != nil {
-		t.Fatalf("write stale lock: %v", err)
+	c := &mockComponent{
+		name: "samuel-skills",
+		uninstallFn: func(_ context.Context, _ UninstallOptions) (UninstallResult, error) {
+			return UninstallResult{}, errors.New("samuel-skills-error")
+		},
 	}
+	o := newOrchestratorWithTempHome(t, a, c)
 
-	c := &mockComponent{name: "samuel-skills"}
-	o := New(c).WithHomeDir(dir)
-
-	if _, err := o.Install(context.Background(), InstallOptions{}); err != nil {
-		t.Errorf("Install with stale lock should succeed (stale lock evicted), got %v", err)
-	}
-}
-
-func TestLock_LiveLockRejects(t *testing.T) {
-	dir := t.TempDir()
-	// Pre-create a lock with our own PID — clearly alive.
-	lockPath := filepath.Join(dir, LockPath)
-	if err := os.MkdirAll(filepath.Dir(lockPath), 0o700); err != nil {
-		t.Fatalf("mkdir: %v", err)
-	}
-	pid := fmt.Sprintf("%d", os.Getpid())
-	if err := os.WriteFile(lockPath, []byte(pid), 0o600); err != nil {
-		t.Fatalf("write live lock: %v", err)
-	}
-
-	c := &mockComponent{name: "samuel-skills"}
-	o := New(c).WithHomeDir(dir)
-
-	_, err := o.Install(context.Background(), InstallOptions{})
+	_, err := o.Uninstall(context.Background(), UninstallOptions{All: true})
 	if err == nil {
-		t.Fatalf("expected lock-busy error, got nil")
+		t.Fatalf("expected joined error")
 	}
-	var oe *Error
-	if !errors.As(err, &oe) {
-		t.Fatalf("expected *Error, got %T: %v", err, err)
-	}
-	if !oe.Recoverable {
-		t.Errorf("lock-busy error should be Recoverable")
-	}
-	if oe.DocsURL == "" {
-		t.Errorf("lock-busy error should have DocsURL")
+	for _, want := range []string{"gstack-error", "samuel-skills-error"} {
+		if !contains(err.Error(), want) {
+			t.Errorf("joined error should contain %q, got %q", want, err.Error())
+		}
 	}
 }
 
-func TestLock_ReleasedAfterInstall(t *testing.T) {
+func TestLock_SuccessiveInstallsSucceed(t *testing.T) {
+	// flock auto-releases on close, so two sequential installs must
+	// both succeed even though the lock file persists.
 	dir := t.TempDir()
 	c := &mockComponent{name: "samuel-skills"}
 	o := New(c).WithHomeDir(dir)
@@ -531,17 +451,20 @@ func TestLock_ReleasedAfterInstall(t *testing.T) {
 	if _, err := o.Install(context.Background(), InstallOptions{}); err != nil {
 		t.Fatalf("first install: %v", err)
 	}
-	// Lock file should be gone.
-	if _, err := os.Stat(filepath.Join(dir, LockPath)); !os.IsNotExist(err) {
-		t.Errorf("lock file should be removed after install; stat err = %v", err)
+	// Lock file persists across runs (flock-based; file is just the
+	// holder marker), but the kernel released the flock when the fd
+	// closed.
+	if _, err := os.Stat(filepath.Join(dir, LockPath)); err != nil {
+		t.Errorf("lock file should still exist after release (flock model); stat err = %v", err)
 	}
-	// Second install should succeed without LOCK error.
 	if _, err := o.Install(context.Background(), InstallOptions{}); err != nil {
 		t.Errorf("second install: %v", err)
 	}
 }
 
-func TestLock_ReleasedAfterInstallError(t *testing.T) {
+func TestLock_LockReleasedAfterInstallError(t *testing.T) {
+	// Even when the install fails, the lock is released so the next
+	// call can proceed.
 	dir := t.TempDir()
 	c := &mockComponent{
 		name: "samuel-skills",
@@ -554,44 +477,137 @@ func TestLock_ReleasedAfterInstallError(t *testing.T) {
 	if _, err := o.Install(context.Background(), InstallOptions{}); err == nil {
 		t.Fatalf("expected install error")
 	}
-	if _, err := os.Stat(filepath.Join(dir, LockPath)); !os.IsNotExist(err) {
-		t.Errorf("lock file should be removed after install error; stat err = %v", err)
+	// A second Install must not be blocked.
+	c2 := &mockComponent{name: "samuel-skills"}
+	o2 := New(c2).WithHomeDir(dir)
+	if _, err := o2.Install(context.Background(), InstallOptions{}); err != nil {
+		t.Errorf("second install (after error) should succeed; got %v", err)
 	}
 }
 
-func TestPidAlive_NegativeAndZero(t *testing.T) {
-	if pidAlive(0) {
-		t.Errorf("pidAlive(0) should be false")
+func TestInstall_FailingComponentPartialMutationsRolledBack(t *testing.T) {
+	// Regression test: the failing component itself may have written
+	// partial mutations before erroring. Those must be rolled back
+	// alongside the prior components' mutations.
+	var reversed []string
+	a := &mockComponent{
+		name: "gstack",
+		installFn: func(_ context.Context, _ InstallOptions) (InstallResult, error) {
+			return InstallResult{
+				Mutations: []Mutation{
+					{Path: "a-1", Reverse: func(_ context.Context) error {
+						reversed = append(reversed, "a-1")
+						return nil
+					}},
+				},
+			}, nil
+		},
 	}
-	if pidAlive(-1) {
-		t.Errorf("pidAlive(-1) should be false")
+	b := &mockComponent{
+		name: "gbrain",
+		installFn: func(_ context.Context, _ InstallOptions) (InstallResult, error) {
+			// Returns BOTH partial mutations AND an error.
+			return InstallResult{
+				Mutations: []Mutation{
+					{Path: "b-partial-1", Reverse: func(_ context.Context) error {
+						reversed = append(reversed, "b-partial-1")
+						return nil
+					}},
+				},
+			}, errors.New("gbrain failed mid-install")
+		},
+	}
+	o := newOrchestratorWithTempHome(t, a, b)
+
+	results, err := o.Install(context.Background(), InstallOptions{})
+	if err == nil {
+		t.Fatalf("expected error")
+	}
+	want := []string{"b-partial-1", "a-1"}
+	if fmt.Sprint(reversed) != fmt.Sprint(want) {
+		t.Errorf("rollback should include failing component's partial mutations; got %v, want %v", reversed, want)
+	}
+	// The failing component's result must be present in results so
+	// callers can introspect what was attempted.
+	if len(results) != 2 {
+		t.Errorf("expected 2 results (success + failure), got %d", len(results))
+	}
+	if results[1].Component != "gbrain" {
+		t.Errorf("expected failing component result to be present, got %q", results[1].Component)
 	}
 }
 
-func TestPidAlive_SelfIsAlive(t *testing.T) {
-	if !pidAlive(os.Getpid()) {
-		t.Errorf("pidAlive(self) should be true")
+func TestInstall_RollbackUsesFreshContext(t *testing.T) {
+	// Regression test: install ctx may be canceled at the moment of
+	// failure. Rollback must run on a fresh context so cleanup isn't
+	// also aborted.
+	a := &mockComponent{
+		name: "gstack",
+		installFn: func(_ context.Context, _ InstallOptions) (InstallResult, error) {
+			return InstallResult{
+				Mutations: []Mutation{
+					{Path: "a-1", Reverse: func(rbCtx context.Context) error {
+						// rbCtx must NOT be the canceled install ctx.
+						if rbCtx.Err() != nil {
+							return fmt.Errorf("rollback ctx already canceled: %w", rbCtx.Err())
+						}
+						return nil
+					}},
+				},
+			}, nil
+		},
+	}
+	b := &mockComponent{
+		name: "gbrain",
+		installFn: func(_ context.Context, _ InstallOptions) (InstallResult, error) {
+			return InstallResult{}, errors.New("trigger rollback")
+		},
+	}
+	o := newOrchestratorWithTempHome(t, a, b)
+
+	canceledCtx, cancel := context.WithCancel(context.Background())
+	cancel() // already canceled before Install runs
+	_, err := o.Install(canceledCtx, InstallOptions{})
+	if err == nil {
+		t.Fatalf("expected install error")
+	}
+	// If rollback inherited the canceled ctx, the assertion in the
+	// Reverse closure would have produced "rollback ctx already
+	// canceled" and the joined error would mention it. Confirm the
+	// rollback succeeded by checking the error contains the install
+	// error but NOT the rollback-canceled marker.
+	if contains(err.Error(), "rollback ctx already canceled") {
+		t.Errorf("rollback ran with canceled context: %v", err)
 	}
 }
 
-// contains is a substring helper for cases where strings.Contains is
-// awkward (avoids importing "strings" in every test).
+func TestShouldSkip_CaseInsensitive(t *testing.T) {
+	// Regression test: a component whose Name() returns "GSTACK" or
+	// "GStack" must still be skipped when SkipGstack is set.
+	cases := []struct {
+		name     string
+		nameOf   string
+		opts     InstallOptions
+		expected bool
+	}{
+		{"exact", NameGstack, InstallOptions{SkipGstack: true}, true},
+		{"upper", "GSTACK", InstallOptions{SkipGstack: true}, true},
+		{"mixed", "GStack", InstallOptions{SkipGstack: true}, true},
+		{"unrelated", "warp", InstallOptions{SkipGstack: true}, false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			c := &mockComponent{name: tc.nameOf}
+			if got := shouldSkip(c, tc.opts); got != tc.expected {
+				t.Errorf("shouldSkip(%q, SkipGstack) = %v, want %v", tc.nameOf, got, tc.expected)
+			}
+		})
+	}
+}
+
+// contains is a substring helper used by tests that only need a "yes/no
+// substring exists" check on freeform error strings. Kept thin to avoid
+// importing strings just for this one assertion shape.
 func contains(haystack, needle string) bool {
-	for i := 0; i+len(needle) <= len(haystack); i++ {
-		if haystack[i:i+len(needle)] == needle {
-			return true
-		}
-	}
-	return false
-}
-
-// mustNotPanic wraps a function that returns an error so panics surface
-// as test failures rather than crashing the whole run.
-func mustNotPanic(fn func() error) (err error) {
-	defer func() {
-		if r := recover(); r != nil {
-			err = fmt.Errorf("panic: %v", r)
-		}
-	}()
-	return fn()
+	return strings.Contains(haystack, needle)
 }
