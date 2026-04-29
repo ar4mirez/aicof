@@ -24,9 +24,9 @@ const samuelProjectSymlink = ".claude/skills/samuel"
 // helpers) from an embedded fs.FS to ~/.claude/skills/samuel/ and creates a
 // symlink at <project>/.claude/skills/samuel/ pointing at the global tree.
 //
-// The fs.FS abstraction lets PR3 swap os.DirFS("template/.claude/skills")
-// (the v3 stopgap) for a real embed.FS without changing this file. The
-// content tree is identical either way.
+// In production the Source is internal/skills.FS() — an embed.FS built into
+// the Samuel binary at compile time. Tests inject fstest.MapFS or
+// os.DirFS for hermetic, fast assertions.
 type SamuelComponent struct {
 	// Source is the read-only filesystem of skill content. Each top-level
 	// entry is a skill directory (go-guide/, nextjs/, ...).
