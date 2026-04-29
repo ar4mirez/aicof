@@ -88,6 +88,15 @@ release:
   draft: false
   prerelease: auto
   name_template: "Samuel v{{.Version}}"
+  # Allow re-running the workflow on a tag that already published. Without
+  # this, a re-run after a partial failure (e.g. token issue, network blip)
+  # bombs with `422 Validation Failed: already_exists` on each asset upload.
+  # With it, GoReleaser deletes the conflicting asset and re-uploads. The
+  # release itself, checksums, and tag are not touched. Idempotent retries.
+  # Caught during the v3.0.0 ship: the first run uploaded assets fine but
+  # failed at the homebrew tap step (auth issue). The retry could not
+  # proceed past asset upload until this flag was added.
+  replace_existing_artifacts: true
   header: |
     ## Samuel v{{.Version}}
 
